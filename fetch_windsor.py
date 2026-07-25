@@ -2,11 +2,9 @@
 # -*- coding: utf-8 -*-
 """Puxa o investimento diario da Meta (Facebook Ads) da API do Windsor e grava data.json.
 Requer a variavel de ambiente WINDSOR_API_KEY (secret no GitHub).
-Usa o endpoint /all + date_preset=this_year (o /facebook e o date_from/date_to
-retornam 400 nesta conta) e filtra datasource=facebook.
-Seguranca: se a busca voltar vazia (erro/sem dados), NAO sobrescreve o data.json
-existente — mantem o ultimo bom."""
-import os, json, sys, datetime, urllib.request, urllib.parse
+Usa /all + date_preset=this_year e filtra datasource=facebook.
+Seguranca: se a busca voltar vazia (erro/sem dados), NAO sobrescreve o data.json."""
+import os, json, sys, datetime, urllib.request, urllib.parse, urllib.error
 
 KEY = os.environ.get("WINDSOR_API_KEY", "").strip()
 if not KEY:
@@ -15,28 +13,40 @@ if not KEY:
 YEAR = str(os.environ.get("ANO", datetime.date.today().year))
 today = datetime.date.today()
 
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
+
 def fetch(preset):
-    # IMPORTANTE: safe=',' mantem as virgulas do campo 'fields' literais.
-    # Se codificar (%2C) a API do Windsor retorna 400.
     q = urllib.parse.urlencode({
         "api_key": KEY,
         "date_preset": preset,
         "fields": "date,datasource,campaign,spend",
     }, safe=",")
     url = "https://connectors.windsor.ai/all?" + q
-    req = urllib.request.Request(url, headers={"User-Agent": "brainpro-dashboard/1.0"})
-    with urllib.request.urlopen(req, timeout=180) as r:
-        d = json.loads(r.read().decode("utf-8"))
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Accept": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            d = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as he:
+        body = ""
+        try:
+            body = he.read().decode("utf-8", "replace")[:400]
+        except Exception:
+            pass
+        print(f"HTTP {he.code} do Windsor. Corpo: {body}", file=sys.stderr)
+        raise
     return d.get("data") or d.get("result") or d.get("results") or []
 
 recs = {}
 try:
-    rows = fetch("this_year")
-    for row in rows:
+    for row in fetch("this_year"):
         if str(row.get("datasource", "")).lower() != "facebook":
             continue
         date = str(row.get("date") or "")
-        if not date.startswith(YEAR):   # so o ano corrente
+        if not date.startswith(YEAR):
             continue
         sp = float(row.get("spend") or 0)
         if sp <= 0:
@@ -48,7 +58,6 @@ except Exception as e:
 records = [{"date": k[0], "campaign": k[1], "spend": v} for k, v in recs.items() if k[0]]
 records.sort(key=lambda r: r["date"])
 
-# SEGURANCA: so grava se veio dado. Se veio vazio, mantem o data.json atual.
 if not records:
     print("ATENCAO: nenhuma linha retornada — mantendo data.json existente (nao sobrescrevo).", file=sys.stderr)
     sys.exit(0)
