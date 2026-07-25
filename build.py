@@ -1,0 +1,471 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Gera index.html do dashboard (2 abas: Mes e Ano) a partir de data.json.
+data.json = {"atualizado":"YYYY-MM-DD","records":[{"date","campaign","spend"}...]}
+Investimento = Meta (automatico). Receita = lancada pelo usuario (localStorage)."""
+import json, re
+from collections import defaultdict
+
+PRODUCTS = ["Pós-Graduação","TEA","tDCS","Vagal","App","Impulsionamento Estratégia Instagram","Outros"]
+
+def classify(c):
+    u = c.upper()
+    if re.search(r"TDCS", u): return "tDCS"
+    if re.search(r"PÓS|POS-GRAD|\[POS\]", u): return "Pós-Graduação"
+    if re.search(r"VAGAL", u): return "Vagal"
+    if re.search(r"\bTEA\b|\[TEA\]", u): return "TEA"
+    if re.search(r"\bAPP\b|\[APP\]", u): return "App"
+    if re.search(r"IMPULSIONAMENTO|VISITAS?\s*AO\s*PERFIL|VISITASAOPERFIL|POSTS?\s*INSTA|PERFIL\]\[POST|TRÁFEGO|TRAFEGO", u):
+        return "Impulsionamento Estratégia Instagram"
+    return "Outros"
+
+def build(src="data.json", out="index.html"):
+    d = json.load(open(src, encoding="utf-8"))
+    recs = d["records"]; atualizado = d.get("atualizado", "")
+    dd = {}
+    for r in recs:
+        dd[(r["date"], r["campaign"])] = float(r["spend"])
+    rows = [(k[0], k[1], v, classify(k[1])) for k, v in dd.items()]
+    ptot = defaultdict(float); mon = defaultdict(lambda: defaultdict(float)); day = defaultdict(lambda: defaultdict(float))
+    for date, camp, spend, prod in rows:
+        ptot[prod] += spend; mon[date[:7]][prod] += spend; day[date][prod] += spend
+    months = sorted(mon); days = sorted(day)
+    all_months = [f"2026-{i:02d}" for i in range(1, 13)]
+    mon_map = {m: {"mes": m, **{p: round(mon[m].get(p, 0), 2) for p in PRODUCTS}, "total": round(sum(mon[m].values()), 2)} for m in months}
+    monthly_full = [mon_map.get(m, {"mes": m, **{p: 0 for p in PRODUCTS}, "total": 0}) for m in all_months]
+    daily = [{"data": dt, **{p: round(day[dt].get(p, 0), 2) for p in PRODUCTS}, "total": round(sum(day[dt].values()), 2)} for dt in days]
+    totals = {p: round(ptot.get(p, 0), 2) for p in PRODUCTS}
+    grand = round(sum(ptot.values()), 2)
+    best_m = max(months, key=lambda m: sum(mon[m].values())) if months else "2026-01"
+    cur_m = months[-1] if months else "2026-01"
+    active = [p for p in PRODUCTS if p != "Outros" and ptot.get(p, 0) > 0]
+    data = {
+        "atualizado": atualizado, "products": PRODUCTS, "totals": totals, "grand": grand,
+        "monthly": monthly_full, "daily": daily, "curMonth": cur_m,
+        "kpis": {"total": grand, "melhor_mes": best_m,
+                 "melhor_mes_valor": round(sum(mon[best_m].values()), 2) if months else 0,
+                 "n_produtos": len(active), "media_diaria": round(grand / len(days), 2) if days else 0,
+                 "dias": len(days), "outros": totals["Outros"]},
+    }
+    html = TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
+    open(out, "w", encoding="utf-8").write(html)
+    print(f"gerado {out}: {len(rows)} registros, {len(days)} dias, total R$ {grand:,.2f}")
+
+TEMPLATE = r'''<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Investimento &amp; Receita · BrainPro 2026</title>
+<style>
+  :root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
+    --grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
+    --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--sOut:#9a988f;
+    --good:#006300;--bad:#c0392b;--accent:#2a78d6;}
+  :root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;
+    --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+    --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--sOut:#8a887f;
+    --good:#0ca30c;--bad:#e66767;--accent:#3987e5;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 22px 60px;}
+  header.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:10px;}
+  h1{font-size:22px;line-height:1.2;margin:0 0 4px;letter-spacing:-.01em;}
+  .sub{color:var(--ink2);font-size:13px;margin:0;}
+  .sub b{color:var(--ink);font-weight:600;}
+  .toggle{border:1px solid var(--ring);background:var(--surface);color:var(--ink2);border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .toggle:hover{color:var(--ink);}
+  .tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:5px;width:max-content;margin:4px 0 16px;}
+  .tab{border:none;background:transparent;color:var(--ink2);font-family:inherit;font-size:14px;font-weight:600;
+    padding:9px 22px;border-radius:8px;cursor:pointer;}
+  .tab.active{background:var(--accent);color:#fff;}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good);font-weight:600;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:11px;margin:6px 0 8px;}
+  .kpi{background:var(--surface);border:1px solid var(--ring);border-radius:13px;padding:14px 15px;}
+  .kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;}
+  .kpi .val{font-size:22px;font-weight:650;letter-spacing:-.01em;}
+  .kpi .note{font-size:11.5px;color:var(--ink2);margin-top:3px;}
+  .kpi .val.pos{color:var(--good);}.kpi .val.neg{color:var(--bad);}
+  .card{background:var(--surface);border:1px solid var(--ring);border-radius:15px;padding:18px 18px 12px;margin-top:16px;}
+  .card h2{font-size:15px;margin:0 0 2px;}
+  .card p.desc{font-size:12.5px;color:var(--ink2);margin:0 0 12px;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px 15px;margin:2px 0 14px;}
+  .lg{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink2);cursor:pointer;user-select:none;}
+  .lg .sw{width:12px;height:12px;border-radius:3px;flex:none;}.lg.off{opacity:.32;text-decoration:line-through;}
+  svg{display:block;width:100%;height:auto;overflow:visible;}
+  .ax{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;}
+  .axl{fill:var(--ink2);font-size:11.5px;}.gl{stroke:var(--grid);stroke-width:1;}.bl{stroke:var(--axis);stroke-width:1;}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums;}
+  th,td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;font-variant-numeric:normal;}
+  thead th{color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;}
+  tbody tr:hover{background:color-mix(in srgb,var(--ink) 4%,transparent);}
+  tfoot td{font-weight:650;border-top:2px solid var(--axis);border-bottom:none;}
+  .pos{color:var(--good);}.neg{color:var(--bad);}
+  input.rev{width:120px;text-align:right;font-family:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;
+    border:1px solid var(--ring);background:var(--plane);color:var(--ink);border-radius:7px;padding:6px 8px;}
+  input.rev:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent;}
+  select.msel{font-family:inherit;font-size:14px;font-weight:600;border:1px solid var(--ring);background:var(--surface);
+    color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;}
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:2px 0 12px;}
+  .toolbar label{font-size:12.5px;color:var(--ink2);}
+  .toolbar input.tax{width:66px}
+  .btn{border:1px solid var(--ring);background:var(--plane);color:var(--ink2);border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .btn:hover{color:var(--ink);}
+  .revbox{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:color-mix(in srgb,var(--accent) 7%,var(--surface));
+    border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:11px;padding:12px 14px;margin-bottom:4px;}
+  .revbox label{font-size:13px;font-weight:600;}
+  .foot{color:var(--muted);font-size:12px;margin-top:22px;line-height:1.6;}
+  .note-outros{background:color-mix(in srgb,var(--s4) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--s4) 40%,transparent);border-radius:11px;padding:12px 14px;font-size:12.5px;color:var(--ink2);margin-top:16px;}
+  .note-outros b{color:var(--ink);}
+  .hide{display:none!important;}
+  .tt{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--ring);border-radius:9px;padding:9px 11px;font-size:12px;color:var(--ink);box-shadow:0 6px 22px rgba(0,0,0,.16);opacity:0;transition:opacity .09s;z-index:20;min-width:150px;}
+  .tt .th{font-weight:650;margin-bottom:6px;font-size:12.5px;}
+  .tt .row{display:flex;justify-content:space-between;gap:14px;line-height:1.5;}
+  .tt .row .k{display:flex;align-items:center;gap:6px;color:var(--ink2);}
+  .tt .row .k i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Investimento &amp; Receita · Meta Ads 2026</h1>
+      <p class="sub">BrainPro Academy · investimento <b>automático</b> da Meta (via Windsor) · <span class="pill" id="upd">atualizado</span> · receita lançada por você</p>
+    </div>
+    <button class="toggle" id="themeBtn">◐ Tema</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-view="mes" id="tabMes">📅 Mês</button>
+    <button class="tab" data-view="ano" id="tabAno">📆 Ano</button>
+  </div>
+
+  <!-- ================= VIEW MÊS ================= -->
+  <div id="viewMes">
+    <div class="toolbar">
+      <label>Mês:</label>
+      <select class="msel" id="monthSel"></select>
+    </div>
+    <div class="kpis" id="kpisMes"></div>
+    <div class="revbox">
+      <label for="revMes">Receita (faturamento) do mês:</label>
+      <input class="rev" id="revMes" inputmode="decimal" placeholder="0,00">
+      <span id="revMesHint" style="font-size:12px;color:var(--ink2)"></span>
+    </div>
+    <div class="card">
+      <h2>Investimento por produto — <span id="mesTit"></span></h2>
+      <p class="desc">Quanto cada produto consumiu no mês.</p>
+      <svg id="cProdMes" viewBox="0 0 900 300" role="img"></svg>
+    </div>
+    <div class="card">
+      <h2>Investimento diário do mês</h2>
+      <p class="desc">Gasto por dia (barras empilhadas por produto).</p>
+      <div class="legend" id="legendMes"></div>
+      <svg id="cDailyMes" viewBox="0 0 900 320" role="img"></svg>
+    </div>
+  </div>
+
+  <!-- ================= VIEW ANO ================= -->
+  <div id="viewAno" class="hide">
+    <div class="kpis" id="kpisAno"></div>
+    <div class="card">
+      <h2>Visão geral do ano — mês a mês</h2>
+      <p class="desc">O investimento entra sozinho da Meta. Digite a <b>receita</b> de cada mês — ROI, ROAS e lucro calculam na hora. Fica salvo no seu navegador.</p>
+      <div class="toolbar">
+        <label>Imposto sobre investimento: <input class="rev tax" id="taxRate" type="number" step="0.01" value="13.83"> %</label>
+        <button class="btn" id="expBtn">⬇ Baixar receita (backup)</button>
+        <button class="btn" id="impBtn">⬆ Restaurar receita</button>
+        <input type="file" id="impFile" accept="application/json" style="display:none">
+      </div>
+      <div style="overflow-x:auto"><table id="tblGeral"></table></div>
+    </div>
+    <div class="card">
+      <h2>Investimento por mês e produto</h2>
+      <p class="desc">Barras empilhadas — cada cor é um produto.</p>
+      <div class="legend" id="legendAno"></div>
+      <svg id="cMonthly" viewBox="0 0 900 380" role="img"></svg>
+    </div>
+    <div class="card">
+      <h2>Investimento diário (ano)</h2>
+      <p class="desc">Área empilhada por produto ao longo de 2026.</p>
+      <svg id="cDaily" viewBox="0 0 900 340" role="img"></svg>
+    </div>
+    <div class="card">
+      <h2>Total por produto no ano</h2>
+      <svg id="cProd" viewBox="0 0 900 300" role="img"></svg>
+    </div>
+    <div class="note-outros" id="noteOutros"></div>
+  </div>
+
+  <p class="foot">
+    Investimento = valor bruto da Meta; "Invest. c/ imposto" aplica a alíquota (padrão 13,83%). ROI = (Receita − Invest. c/ imposto) / Invest. c/ imposto · ROAS = Receita / Invest. c/ imposto.<br>
+    "Outros" = campanhas fora dos 6 produtos (Binaurais, Workshop, eventos, testes). Investimento atualiza sozinho todo dia; a receita fica salva no seu navegador — use "Baixar receita" para backup.
+  </p>
+</div>
+<div class="tt" id="tt"></div>
+<script>
+const DATA = __DATA__;
+const PRODUCTS = DATA.products;
+const COLORVAR = {"Pós-Graduação":"--s1","TEA":"--s2","tDCS":"--s3","Vagal":"--s4","App":"--s5","Impulsionamento Estratégia Instagram":"--s6","Outros":"--sOut"};
+const SHORT = {"Pós-Graduação":"Pós-Graduação","TEA":"TEA","tDCS":"tDCS","Vagal":"Vagal","App":"App","Impulsionamento Estratégia Instagram":"Impulsionamento","Outros":"Outros"};
+const MES = {"2026-01":"Janeiro","2026-02":"Fevereiro","2026-03":"Março","2026-04":"Abril","2026-05":"Maio","2026-06":"Junho","2026-07":"Julho","2026-08":"Agosto","2026-09":"Setembro","2026-10":"Outubro","2026-11":"Novembro","2026-12":"Dezembro"};
+const MESC = {"2026-01":"Jan","2026-02":"Fev","2026-03":"Mar","2026-04":"Abr","2026-05":"Mai","2026-06":"Jun","2026-07":"Jul","2026-08":"Ago","2026-09":"Set","2026-10":"Out","2026-11":"Nov","2026-12":"Dez"};
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const col=p=>cssv(COLORVAR[p]);
+const brl=n=>"R$ "+Number(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const brlk=n=>"R$ "+Number(n||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+const SVGNS="http://www.w3.org/2000/svg";
+const el=(t,a={})=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const tt=document.getElementById("tt");
+let hidden=new Set(), hiddenMes=new Set(), curView="mes", selMonth=DATA.curMonth;
+
+const LS="brainpro_receita_2026";
+function loadRev(){try{return JSON.parse(localStorage.getItem(LS)||"{}")}catch(e){return {}}}
+function saveRev(o){try{localStorage.setItem(LS,JSON.stringify(o))}catch(e){}}
+let REV=loadRev();
+function taxRate(){const v=parseFloat(document.getElementById("taxRate").value);return isNaN(v)?0:v/100;}
+function parseNum(s){return parseFloat(String(s).replace(/\./g,'').replace(',','.').trim())||0;}
+
+function showTT(html,x,y){tt.innerHTML=html;tt.style.opacity=1;let nx=x+14,ny=y+14;const r=tt.getBoundingClientRect();
+  if(nx+r.width>window.innerWidth-8)nx=x-r.width-14;if(ny+r.height>window.innerHeight-8)ny=y-r.height-14;
+  tt.style.left=nx+"px";tt.style.top=ny+"px";}
+const hideTT=()=>tt.style.opacity=0;
+function niceTicks(max,count){const raw=(max||1)/count;const mag=Math.pow(10,Math.floor(Math.log10(raw||1)));
+  let norm=raw/mag,step;if(norm<1.5)step=1;else if(norm<3)step=2;else if(norm<7)step=5;else step=10;
+  step*=mag;const top=Math.ceil((max||1)/step)*step;const out=[];for(let v=0;v<=top+1e-6;v+=step)out.push(Math.round(v));return out;}
+
+function computeMonth(mk){
+  const r=DATA.monthly.find(x=>x.mes===mk)||{total:0};
+  const inv=r.total,tax=taxRate(),invT=inv*(1+tax),rec=parseFloat(REV[mk])||0;
+  return {inv,invT,rec,roi:invT>0?(rec-invT)/invT:null,roas:invT>0?rec/invT:null,lucro:rec-invT,row:r};
+}
+function yearTotals(){let inv=0,invT=0,rec=0;DATA.monthly.forEach(r=>{const c=computeMonth(r.mes);inv+=c.inv;invT+=c.invT;rec+=c.rec;});
+  return {inv,invT,rec,roi:invT>0?(rec-invT)/invT:null,roas:invT>0?rec/invT:null,lucro:rec-invT};}
+
+/* ===== KPIs ===== */
+function kpiCard(l,v,n,c){return `<div class="kpi"><div class="lab">${l}</div><div class="val ${c||''}">${v}</div><div class="note">${n}</div></div>`;}
+function kpisMes(){
+  const c=computeMonth(selMonth);
+  const roi=c.roi==null?"—":(c.roi*100).toFixed(1)+"%", roas=c.roas==null?"—":c.roas.toFixed(2)+"x";
+  document.getElementById("kpisMes").innerHTML=[
+    kpiCard("Investimento",brl(c.inv),"c/ imposto "+brl(c.invT),""),
+    kpiCard("Receita",brl(c.rec),c.rec>0?"faturamento informado":"digite abaixo",""),
+    kpiCard("ROI",c.rec>0?roi:"—","sobre invest. c/ imposto",c.rec>0&&c.roi!=null?(c.roi>=0?"pos":"neg"):""),
+    kpiCard("ROAS",c.rec>0?roas:"—","receita ÷ invest. c/ imp.",""),
+    kpiCard("Lucro",c.rec>0?brl(c.lucro):"—","receita − invest. c/ imp.",c.rec>0?(c.lucro>=0?"pos":"neg"):""),
+  ].join("");
+}
+function kpisAno(){
+  const t=yearTotals(),k=DATA.kpis;
+  const roi=t.roi==null?"—":(t.roi*100).toFixed(1)+"%",roas=t.roas==null?"—":t.roas.toFixed(2)+"x";
+  document.getElementById("kpisAno").innerHTML=[
+    kpiCard("Investimento 2026",brl(t.inv),k.dias+" dias · média "+brl(k.media_diaria)+"/dia",""),
+    kpiCard("Receita lançada",brl(t.rec),t.rec>0?"faturamento informado":"digite na tabela",""),
+    kpiCard("ROI",t.rec>0?roi:"—","sobre invest. c/ imposto",t.rec>0&&t.roi!=null?(t.roi>=0?"pos":"neg"):""),
+    kpiCard("ROAS",t.rec>0?roas:"—","receita ÷ invest. c/ imp.",""),
+    kpiCard("Lucro",t.rec>0?brl(t.lucro):"—","receita − invest. c/ imp.",t.rec>0?(t.lucro>=0?"pos":"neg"):""),
+  ].join("");
+}
+
+/* ===== MÊS: seletor, receita ===== */
+function fillMonthSel(){
+  const s=document.getElementById("monthSel");
+  const withData=DATA.monthly.filter(r=>r.total>0).map(r=>r.mes);
+  const list=withData.length?withData:["2026-01"];
+  s.innerHTML=list.map(m=>`<option value="${m}"${m===selMonth?" selected":""}>${MES[m]} 2026</option>`).join("");
+  if(!list.includes(selMonth)){selMonth=list[list.length-1];s.value=selMonth;}
+}
+function syncRevMes(){
+  const inp=document.getElementById("revMes");
+  inp.value=REV[selMonth]!=null?REV[selMonth]:"";
+  document.getElementById("revMesHint").textContent="(mês de "+MES[selMonth]+")";
+}
+
+/* ===== charts MÊS ===== */
+function prodMes(){
+  const svg=document.getElementById("cProdMes");svg.innerHTML="";
+  const r=DATA.monthly.find(x=>x.mes===selMonth)||{};
+  const list=PRODUCTS.map(p=>[p,r[p]||0]).filter(d=>d[1]>0).sort((a,b)=>b[1]-a[1]);
+  const W=900,H=Math.max(120,60+list.length*40),mL=150,mR=90,mT=8,mB=8,pw=W-mL-mR,ph=H-mT-mB;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  if(!list.length){const t=el("text",{x:W/2,y:H/2,class:"axl","text-anchor":"middle"});t.textContent="Sem investimento neste mês";svg.appendChild(t);return;}
+  const maxV=Math.max(...list.map(d=>d[1]),1),band=ph/list.length,bh=Math.min(30,band*0.6);
+  list.forEach((d,i)=>{const [p,v]=d,cy=mT+band*i+band/2,w=(v/maxV)*pw;
+    const lab=el("text",{x:mL-10,y:cy+4,class:"axl","text-anchor":"end"});lab.textContent=SHORT[p];svg.appendChild(lab);
+    const rect=el("rect",{x:mL,y:cy-bh/2,width:Math.max(w,2),height:bh,rx:4,fill:col(p)});rect.style.cursor="pointer";
+    const tot=(DATA.monthly.find(x=>x.mes===selMonth)||{}).total||1;
+    rect.addEventListener("mousemove",e=>showTT(`<div class="th">${SHORT[p]}</div><div class="row"><span class="k">Investimento</span><span>${brl(v)}</span></div><div class="row"><span class="k">% do mês</span><span>${(100*v/tot).toFixed(1)}%</span></div>`,e.clientX,e.clientY));
+    rect.addEventListener("mouseleave",hideTT);svg.appendChild(rect);
+    const val=el("text",{x:mL+w+8,y:cy+4,class:"ax","text-anchor":"start"});val.textContent=brlk(v);svg.appendChild(val);});
+}
+function dailyMes(){
+  const svg=document.getElementById("cDailyMes");svg.innerHTML="";
+  const rowsAll=DATA.daily.filter(r=>r.data.slice(0,7)===selMonth);
+  const act=PRODUCTS.filter(p=>!hiddenMes.has(p));
+  const W=900,H=320,mL=64,mR=16,mT=12,mB=34,pw=W-mL-mR,ph=H-mT-mB;
+  if(!rowsAll.length){const t=el("text",{x:W/2,y:H/2,class:"axl","text-anchor":"middle"});t.textContent="Sem dados diários neste mês";svg.appendChild(t);return;}
+  const maxV=Math.max(...rowsAll.map(r=>act.reduce((s,p)=>s+r[p],0)),1);
+  const ticks=niceTicks(maxV,4),top=ticks[ticks.length-1],y=v=>mT+ph-(v/top)*ph;
+  const n=rowsAll.length,band=pw/n,bw=Math.min(26,band*0.7);
+  ticks.forEach(t=>{svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(t),y2:y(t),class:"gl"}));
+    const tx=el("text",{x:mL-8,y:y(t)+3.5,class:"ax","text-anchor":"end"});tx.textContent=brlk(t);svg.appendChild(tx);});
+  svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(0),y2:y(0),class:"bl"}));
+  rowsAll.forEach((r,i)=>{const cx=mL+band*i+band/2,x=cx-bw/2;let acc=0;
+    act.forEach(p=>{const v=r[p];if(v<=0)return;const h=(v/top)*ph;
+      const rect=el("rect",{x:x,y:y(acc+v),width:bw,height:Math.max(h-1.5,0),rx:2,fill:col(p)});rect.style.cursor="pointer";
+      rect.addEventListener("mousemove",e=>showTT(dayTT(r,act),e.clientX,e.clientY));rect.addEventListener("mouseleave",hideTT);
+      svg.appendChild(rect);acc+=v;});
+    if(i%Math.ceil(n/12)===0||i===n-1){const tx=el("text",{x:cx,y:H-mB+20,class:"ax","text-anchor":"middle"});tx.textContent=r.data.slice(8);svg.appendChild(tx);}});
+}
+function dayTT(r,act){const [Y,M,D]=r.data.split("-");
+  let rows=act.filter(p=>r[p]>0).sort((a,b)=>r[b]-r[a]).map(p=>`<div class="row"><span class="k"><i style="background:${col(p)}"></i>${SHORT[p]}</span><span>${brl(r[p])}</span></div>`).join("");
+  const tot=act.reduce((s,p)=>s+r[p],0);
+  return `<div class="th">${D}/${M}/${Y}</div>${rows||'<div class="row"><span class="k">sem gasto</span></div>'}<div class="row" style="margin-top:5px;border-top:1px solid var(--grid);padding-top:5px"><span class="k">Total</span><span><b>${brl(tot)}</b></span></div>`;}
+
+/* ===== legends ===== */
+function legendMes(){const lg=document.getElementById("legendMes");lg.innerHTML="";
+  PRODUCTS.forEach(p=>{const d=document.createElement("div");d.className="lg"+(hiddenMes.has(p)?" off":"");
+    d.innerHTML=`<span class="sw" style="background:${col(p)}"></span>${SHORT[p]}`;
+    d.onclick=()=>{hiddenMes.has(p)?hiddenMes.delete(p):hiddenMes.add(p);legendMes();dailyMes();};lg.appendChild(d);});}
+function legendAno(){const lg=document.getElementById("legendAno");lg.innerHTML="";
+  PRODUCTS.forEach(p=>{const d=document.createElement("div");d.className="lg"+(hidden.has(p)?" off":"");
+    d.innerHTML=`<span class="sw" style="background:${col(p)}"></span>${SHORT[p]}`;
+    d.onclick=()=>{hidden.has(p)?hidden.delete(p):hidden.add(p);legendAno();drawAno();};lg.appendChild(d);});}
+const activeAno=()=>PRODUCTS.filter(p=>!hidden.has(p));
+
+/* ===== ANO: tabela geral ===== */
+function tblGeral(){
+  const t=document.getElementById("tblGeral");
+  const head=`<thead><tr><th>Mês</th><th>Investimento</th><th>Invest. c/ imp.</th><th>Receita</th><th>ROI</th><th>ROAS</th><th>Lucro</th></tr></thead>`;
+  let body="<tbody>";
+  DATA.monthly.forEach(r=>{const c=computeMonth(r.mes),hasInv=c.inv>0;
+    const roi=c.rec>0&&c.roi!=null?`<span class="${c.roi>=0?'pos':'neg'}">${(c.roi*100).toFixed(1)}%</span>`:"—";
+    const roas=c.rec>0&&c.roas!=null?c.roas.toFixed(2)+"x":"—";
+    const lucro=c.rec>0?`<span class="${c.lucro>=0?'pos':'neg'}">${brlk(c.lucro)}</span>`:"—";
+    body+=`<tr><td>${MESC[r.mes]}</td><td>${hasInv?brlk(c.inv):"—"}</td><td>${hasInv?brlk(c.invT):"—"}</td>`+
+      `<td><input class="rev" data-m="${r.mes}" inputmode="decimal" value="${REV[r.mes]!=null?REV[r.mes]:''}" placeholder="0"></td>`+
+      `<td>${roi}</td><td>${roas}</td><td>${lucro}</td></tr>`;});
+  body+="</tbody>";
+  const T=yearTotals();
+  const froi=T.rec>0&&T.roi!=null?`<span class="${T.roi>=0?'pos':'neg'}">${(T.roi*100).toFixed(1)}%</span>`:"—";
+  const foot=`<tfoot><tr><td>Total · Ano</td><td>${brlk(T.inv)}</td><td>${brlk(T.invT)}</td><td>${brlk(T.rec)}</td><td>${froi}</td><td>${T.rec>0&&T.roas!=null?T.roas.toFixed(2)+"x":"—"}</td><td>${T.rec>0?brlk(T.lucro):"—"}</td></tr></tfoot>`;
+  t.innerHTML=head+body+foot;
+  t.querySelectorAll("input.rev").forEach(inp=>inp.addEventListener("input",()=>{
+    const m=inp.dataset.m,v=inp.value.trim();
+    if(v==="")delete REV[m];else REV[m]=parseNum(v);
+    saveRev(REV);recalcAll();}));
+}
+/* atualiza numeros derivados sem recriar inputs (nao perde foco) */
+function recalcAll(){
+  kpisAno();kpisMes();
+  const tf=document.querySelector("#tblGeral tfoot");
+  if(tf){const T=yearTotals();const froi=T.rec>0&&T.roi!=null?`<span class="${T.roi>=0?'pos':'neg'}">${(T.roi*100).toFixed(1)}%</span>`:"—";
+    tf.innerHTML=`<tr><td>Total · Ano</td><td>${brlk(T.inv)}</td><td>${brlk(T.invT)}</td><td>${brlk(T.rec)}</td><td>${froi}</td><td>${T.rec>0&&T.roas!=null?T.roas.toFixed(2)+"x":"—"}</td><td>${T.rec>0?brlk(T.lucro):"—"}</td></tr>`;}
+  document.querySelectorAll("#tblGeral tbody tr").forEach(tr=>{const inp=tr.querySelector("input.rev");if(!inp)return;
+    const c=computeMonth(inp.dataset.m),tds=tr.querySelectorAll("td");
+    tds[4].innerHTML=c.rec>0&&c.roi!=null?`<span class="${c.roi>=0?'pos':'neg'}">${(c.roi*100).toFixed(1)}%</span>`:"—";
+    tds[5].innerHTML=c.rec>0&&c.roas!=null?c.roas.toFixed(2)+"x":"—";
+    tds[6].innerHTML=c.rec>0?`<span class="${c.lucro>=0?'pos':'neg'}">${brlk(c.lucro)}</span>`:"—";});
+}
+
+/* ===== ANO charts ===== */
+function monthly(){
+  const svg=document.getElementById("cMonthly");svg.innerHTML="";
+  const W=900,H=380,mL=64,mR=16,mT=14,mB=40,pw=W-mL-mR,ph=H-mT-mB;
+  const rows=DATA.monthly.filter(r=>r.total>0);
+  const maxV=Math.max(...rows.map(r=>activeAno().reduce((s,p)=>s+r[p],0)),1);
+  const ticks=niceTicks(maxV,5),top=ticks[ticks.length-1],y=v=>mT+ph-(v/top)*ph;
+  ticks.forEach(t=>{svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(t),y2:y(t),class:"gl"}));
+    const tx=el("text",{x:mL-8,y:y(t)+3.5,class:"ax","text-anchor":"end"});tx.textContent=brlk(t);svg.appendChild(tx);});
+  svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(0),y2:y(0),class:"bl"}));
+  const n=rows.length,band=pw/Math.max(n,1),bw=Math.min(64,band*0.62);
+  rows.forEach((r,i)=>{const cx=mL+band*i+band/2,x=cx-bw/2;let acc=0;
+    activeAno().forEach(p=>{const v=r[p];if(v<=0)return;const h=(v/top)*ph;
+      const rect=el("rect",{x:x,y:y(acc+v),width:bw,height:Math.max(h-2,0),rx:3,fill:col(p)});rect.style.cursor="pointer";
+      rect.addEventListener("mousemove",e=>showTT(monthTT(r),e.clientX,e.clientY));rect.addEventListener("mouseleave",hideTT);
+      svg.appendChild(rect);acc+=v;});
+    const tx=el("text",{x:cx,y:H-mB+22,class:"axl","text-anchor":"middle"});tx.textContent=MESC[r.mes];svg.appendChild(tx);
+    const tot=el("text",{x:cx,y:y(acc)-7,class:"ax","text-anchor":"middle"});tot.textContent=brlk(acc);tot.style.fontWeight=600;svg.appendChild(tot);});
+}
+function monthTT(r){let rows=activeAno().filter(p=>r[p]>0).sort((a,b)=>r[b]-r[a]).map(p=>`<div class="row"><span class="k"><i style="background:${col(p)}"></i>${SHORT[p]}</span><span>${brl(r[p])}</span></div>`).join("");
+  const tot=activeAno().reduce((s,p)=>s+r[p],0);
+  return `<div class="th">${MES[r.mes]} 2026</div>${rows}<div class="row" style="margin-top:5px;border-top:1px solid var(--grid);padding-top:5px"><span class="k">Total</span><span><b>${brl(tot)}</b></span></div>`;}
+function daily(){
+  const svg=document.getElementById("cDaily");svg.innerHTML="";
+  const W=900,H=340,mL=64,mR=16,mT=12,mB=34,pw=W-mL-mR,ph=H-mT-mB;
+  const rows=DATA.daily,n=rows.length;if(!n)return;
+  const maxV=Math.max(...rows.map(r=>activeAno().reduce((s,p)=>s+r[p],0)),1);
+  const ticks=niceTicks(maxV,4),top=ticks[ticks.length-1],x=i=>mL+(pw*(n<=1?0:i/(n-1))),y=v=>mT+ph-(v/top)*ph;
+  ticks.forEach(t=>{svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(t),y2:y(t),class:"gl"}));
+    const tx=el("text",{x:mL-8,y:y(t)+3.5,class:"ax","text-anchor":"end"});tx.textContent=brlk(t);svg.appendChild(tx);});
+  let base=new Array(n).fill(0);
+  activeAno().forEach(p=>{const tl=rows.map((r,i)=>base[i]+r[p]);let dd="M"+x(0)+","+y(base[0]);
+    for(let i=0;i<n;i++)dd+=" L"+x(i).toFixed(1)+","+y(tl[i]).toFixed(1);
+    for(let i=n-1;i>=0;i--)dd+=" L"+x(i).toFixed(1)+","+y(base[i]).toFixed(1);
+    dd+=" Z";svg.appendChild(el("path",{d:dd,fill:col(p),"fill-opacity":.9}));base=tl;});
+  svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(0),y2:y(0),class:"bl"}));
+  let seen={};rows.forEach((r,i)=>{const m=r.data.slice(0,7);if(!seen[m]){seen[m]=1;
+    const tx=el("text",{x:x(i),y:H-mB+20,class:"axl","text-anchor":"middle"});tx.textContent=MESC[m];svg.appendChild(tx);}});
+  const hover=el("line",{x1:0,x2:0,y1:mT,y2:mT+ph,stroke:"var(--axis)","stroke-width":1,opacity:0});svg.appendChild(hover);
+  const cap=el("rect",{x:mL,y:mT,width:pw,height:ph,fill:"transparent"});cap.style.cursor="crosshair";
+  cap.addEventListener("mousemove",e=>{const pt=svg.getBoundingClientRect();const rel=(e.clientX-pt.left)/pt.width*W;
+    let i=Math.round((rel-mL)/pw*(n-1));i=Math.max(0,Math.min(n-1,i));
+    hover.setAttribute("x1",x(i));hover.setAttribute("x2",x(i));hover.setAttribute("opacity",1);
+    showTT(dayTT(rows[i],activeAno()),e.clientX,e.clientY);});
+  cap.addEventListener("mouseleave",()=>{hover.setAttribute("opacity",0);hideTT();});svg.appendChild(cap);
+}
+function prod(){
+  const svg=document.getElementById("cProd");svg.innerHTML="";
+  const W=900,H=300,mL=150,mR=90,mT=8,mB=8,pw=W-mL-mR,ph=H-mT-mB;
+  const list=PRODUCTS.map(p=>[p,DATA.totals[p]]).filter(d=>d[1]>0).sort((a,b)=>b[1]-a[1]);
+  const maxV=Math.max(...list.map(d=>d[1]),1),band=ph/Math.max(list.length,1),bh=Math.min(30,band*0.6);
+  list.forEach((d,i)=>{const [p,v]=d,cy=mT+band*i+band/2,w=(v/maxV)*pw;
+    const lab=el("text",{x:mL-10,y:cy+4,class:"axl","text-anchor":"end"});lab.textContent=SHORT[p];svg.appendChild(lab);
+    const rect=el("rect",{x:mL,y:cy-bh/2,width:Math.max(w,2),height:bh,rx:4,fill:col(p)});rect.style.cursor="pointer";
+    rect.addEventListener("mousemove",e=>showTT(`<div class="th">${SHORT[p]}</div><div class="row"><span class="k">Investimento</span><span>${brl(v)}</span></div><div class="row"><span class="k">% do total</span><span>${(100*v/DATA.grand).toFixed(1)}%</span></div>`,e.clientX,e.clientY));
+    rect.addEventListener("mouseleave",hideTT);svg.appendChild(rect);
+    const val=el("text",{x:mL+w+8,y:cy+4,class:"ax","text-anchor":"start"});val.textContent=brlk(v);svg.appendChild(val);});
+}
+function noteOutros(){document.getElementById("noteOutros").innerHTML=`<b>Sobre "Outros" (${brl(DATA.totals.Outros)}):</b> campanhas fora dos 6 produtos — Binaurais, Workshop, eventos e testes de VSL. Separadas para não inflar os produtos.`;}
+
+/* ===== render ===== */
+function drawMes(){kpisMes();fillMonthSel();syncRevMes();document.getElementById("mesTit").textContent=MES[selMonth]+" 2026";prodMes();legendMes();dailyMes();}
+function drawAno(){monthly();daily();prod();}
+function renderMes(){drawMes();}
+function renderAno(){kpisAno();tblGeral();legendAno();drawAno();noteOutros();}
+
+function switchView(v){curView=v;
+  document.getElementById("viewMes").classList.toggle("hide",v!=="mes");
+  document.getElementById("viewAno").classList.toggle("hide",v!=="ano");
+  document.getElementById("tabMes").classList.toggle("active",v==="mes");
+  document.getElementById("tabAno").classList.toggle("active",v==="ano");
+  if(v==="mes")renderMes();else renderAno();}
+
+document.getElementById("tabMes").onclick=()=>switchView("mes");
+document.getElementById("tabAno").onclick=()=>switchView("ano");
+document.getElementById("monthSel").onchange=e=>{selMonth=e.target.value;renderMes();};
+document.getElementById("revMes").addEventListener("input",e=>{const v=e.target.value.trim();
+  if(v==="")delete REV[selMonth];else REV[selMonth]=parseNum(v);saveRev(REV);kpisMes();});
+document.getElementById("taxRate").addEventListener("input",()=>{recalcAll();if(curView==="mes")kpisMes();});
+document.getElementById("themeBtn").onclick=()=>{const r=document.documentElement;
+  r.setAttribute("data-theme",r.getAttribute("data-theme")==="dark"?"light":"dark");
+  if(curView==="mes")drawMes();else drawAno();};
+document.getElementById("expBtn").onclick=()=>{const blob=new Blob([JSON.stringify({receita:REV,imposto:document.getElementById("taxRate").value},null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="receita_brainpro_2026.json";a.click();};
+document.getElementById("impBtn").onclick=()=>document.getElementById("impFile").click();
+document.getElementById("impFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const o=JSON.parse(rd.result);if(o.receita){REV=o.receita;saveRev(REV);}if(o.imposto)document.getElementById("taxRate").value=o.imposto;switchView(curView);}catch(err){alert("Arquivo inválido");}};rd.readAsText(f);};
+
+function boot(){document.getElementById("upd").textContent="atualizado em "+(DATA.atualizado?DATA.atualizado.split("-").reverse().join("/"):"—");
+  if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.setAttribute("data-theme","dark");
+  switchView("mes");}
+boot();
+</script>
+</body>
+</html>'''
+
+if __name__ == "__main__":
+    import sys
+    build(sys.argv[1] if len(sys.argv) > 1 else "data.json",
+          sys.argv[2] if len(sys.argv) > 2 else "index.html")
