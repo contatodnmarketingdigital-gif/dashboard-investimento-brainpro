@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """Puxa o investimento diario da Meta (Facebook Ads) da API do Windsor e grava data.json.
 Requer a variavel de ambiente WINDSOR_API_KEY (secret no GitHub).
+Usa o endpoint /all (o /facebook retorna 400 nesta conta) e filtra datasource=facebook.
 Seguranca: se a busca voltar vazia (erro/sem dados), NAO sobrescreve o data.json
 existente — mantem o ultimo bom."""
 import os, json, sys, datetime, urllib.request, urllib.parse
@@ -14,15 +15,15 @@ YEAR = int(os.environ.get("ANO", datetime.date.today().year))
 today = datetime.date.today()
 
 def fetch(dfrom, dto):
-    # API HTTP do Windsor: sem filtros com colchetes (causam 400). Filtramos spend>0 aqui.
     q = urllib.parse.urlencode({
         "api_key": KEY,
         "date_from": dfrom,
         "date_to": dto,
-        "fields": "date,campaign,spend",
+        "fields": "date,datasource,campaign,spend",
     })
-    url = "https://connectors.windsor.ai/facebook?" + q
-    with urllib.request.urlopen(url, timeout=120) as r:
+    url = "https://connectors.windsor.ai/all?" + q
+    req = urllib.request.Request(url, headers={"User-Agent": "brainpro-dashboard/1.0"})
+    with urllib.request.urlopen(req, timeout=180) as r:
         d = json.loads(r.read().decode("utf-8"))
     return d.get("data") or d.get("result") or d.get("results") or []
 
@@ -42,6 +43,8 @@ while m <= 12:
     dfrom, dto = f"{YEAR}-{m:02d}-01", f"{YEAR}-{m:02d}-{last:02d}"
     try:
         for row in fetch(dfrom, dto):
+            if str(row.get("datasource", "")).lower() != "facebook":
+                continue
             sp = float(row.get("spend") or 0)
             if sp <= 0:
                 continue
