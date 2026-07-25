@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """Puxa o investimento diario da Meta (Facebook Ads) da API do Windsor e grava data.json.
 Requer a variavel de ambiente WINDSOR_API_KEY (secret no GitHub).
-Usa o endpoint /all (o /facebook retorna 400 nesta conta) e filtra datasource=facebook.
+Usa o endpoint /all + date_preset=this_year (o /facebook e o date_from/date_to
+retornam 400 nesta conta) e filtra datasource=facebook.
 Seguranca: se a busca voltar vazia (erro/sem dados), NAO sobrescreve o data.json
 existente — mantem o ultimo bom."""
 import os, json, sys, datetime, urllib.request, urllib.parse
@@ -11,14 +12,13 @@ KEY = os.environ.get("WINDSOR_API_KEY", "").strip()
 if not KEY:
     print("ERRO: defina o secret WINDSOR_API_KEY", file=sys.stderr); sys.exit(1)
 
-YEAR = int(os.environ.get("ANO", datetime.date.today().year))
+YEAR = str(os.environ.get("ANO", datetime.date.today().year))
 today = datetime.date.today()
 
-def fetch(dfrom, dto):
+def fetch(preset):
     q = urllib.parse.urlencode({
         "api_key": KEY,
-        "date_from": dfrom,
-        "date_to": dto,
+        "date_preset": preset,
         "fields": "date,datasource,campaign,spend",
     })
     url = "https://connectors.windsor.ai/all?" + q
@@ -28,31 +28,20 @@ def fetch(dfrom, dto):
     return d.get("data") or d.get("result") or d.get("results") or []
 
 recs = {}
-erros = 0
-m = 1
-while m <= 12:
-    first = datetime.date(YEAR, m, 1)
-    if first > today:
-        break
-    last = 28
-    for dd in (31, 30, 29, 28):
-        try:
-            datetime.date(YEAR, m, dd); last = dd; break
-        except ValueError:
+try:
+    rows = fetch("this_year")
+    for row in rows:
+        if str(row.get("datasource", "")).lower() != "facebook":
             continue
-    dfrom, dto = f"{YEAR}-{m:02d}-01", f"{YEAR}-{m:02d}-{last:02d}"
-    try:
-        for row in fetch(dfrom, dto):
-            if str(row.get("datasource", "")).lower() != "facebook":
-                continue
-            sp = float(row.get("spend") or 0)
-            if sp <= 0:
-                continue
-            recs[(row.get("date"), row.get("campaign"))] = sp
-    except Exception as e:
-        erros += 1
-        print(f"aviso: mes {m} falhou: {e}", file=sys.stderr)
-    m += 1
+        date = str(row.get("date") or "")
+        if not date.startswith(YEAR):   # so o ano corrente
+            continue
+        sp = float(row.get("spend") or 0)
+        if sp <= 0:
+            continue
+        recs[(date, row.get("campaign"))] = sp
+except Exception as e:
+    print(f"aviso: busca this_year falhou: {e}", file=sys.stderr)
 
 records = [{"date": k[0], "campaign": k[1], "spend": v} for k, v in recs.items() if k[0]]
 records.sort(key=lambda r: r["date"])
@@ -64,4 +53,4 @@ if not records:
 
 out = {"atualizado": today.isoformat(), "records": records}
 json.dump(out, open("data.json", "w", encoding="utf-8"), ensure_ascii=False)
-print(f"data.json: {len(records)} registros ate {today.isoformat()} (meses com erro: {erros})")
+print(f"data.json: {len(records)} registros ate {today.isoformat()}")
