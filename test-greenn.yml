@@ -1,0 +1,17 @@
+name: Testar Greenn (receita)
+on:
+  workflow_dispatch: {}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Testar fetch Greenn
+        env:
+          GREENN_API_TOKEN: ${{ secrets.GREENN_API_TOKEN }}
+        run: |
+          python fetch_greenn.py
+          echo "===== receita_greenn.json ====="
+          cat receita_greenn.json 2>/dev/null || echo "(arquivo nao gerado)"
