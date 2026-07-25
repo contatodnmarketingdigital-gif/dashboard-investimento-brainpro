@@ -1,0 +1,29 @@
+name: Atualizar dashboard (diario)
+on:
+  schedule:
+    - cron: '0 9 * * *'   # 09:00 UTC = 06:00 (Brasilia)
+  workflow_dispatch: {}    # permite rodar manualmente
+  push:
+    branches: [ main ]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Puxar dados da Meta (Windsor)
+        env:
+          WINDSOR_API_KEY: ${{ secrets.WINDSOR_API_KEY }}
+        run: python fetch_windsor.py || echo "fetch falhou, mantendo data.json atual"
+      - name: Gerar index.html
+        run: python build.py data.json index.html
+      - name: Commit se mudou
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Atualizacao diaria automatica" || echo "sem mudancas"
+          git push
