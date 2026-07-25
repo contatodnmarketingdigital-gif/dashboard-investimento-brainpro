@@ -16,11 +16,13 @@ YEAR = str(os.environ.get("ANO", datetime.date.today().year))
 today = datetime.date.today()
 
 def fetch(preset):
+    # IMPORTANTE: safe=',' mantem as virgulas do campo 'fields' literais.
+    # Se codificar (%2C) a API do Windsor retorna 400.
     q = urllib.parse.urlencode({
         "api_key": KEY,
         "date_preset": preset,
         "fields": "date,datasource,campaign,spend",
-    })
+    }, safe=",")
     url = "https://connectors.windsor.ai/all?" + q
     req = urllib.request.Request(url, headers={"User-Agent": "brainpro-dashboard/1.0"})
     with urllib.request.urlopen(req, timeout=180) as r:
