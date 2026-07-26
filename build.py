@@ -48,20 +48,13 @@ def load_planilha(path="historico_planilha.json"):
 def build(src="data.json", out="index.html"):
     d = json.load(open(src, encoding="utf-8"))
     recs = d["records"]; atualizado = d.get("atualizado", "")
-    dd = {}
+    dd = defaultdict(float)
     for r in recs:
-        dd[(r["date"], r["campaign"])] = float(r["spend"])
-    # Ajusta o investimento diario/mensal (Windsor) para bater com a planilha mestre.
+        dd[(r["date"], r["campaign"])] += float(r["spend"])
+    # Investimento = GASTO REAL do Meta (todas as 5 contas, via Windsor).
+    # Nao ajustamos mais pela planilha: a planilha estava abaixo do gasto real
+    # (ex.: a conta 02-TEA nao entrava por completo). Total real ~R$ 201 mil.
     plan = load_planilha()
-    inv_mensal = plan.get("investimento_mensal", {})
-    if inv_mensal:
-        wm = defaultdict(float)
-        for (dt, camp), sp in dd.items():
-            wm[dt[:7]] += sp
-        for k in list(dd.keys()):
-            m = k[0][:7]
-            if m in inv_mensal and wm[m] > 0:
-                dd[k] = dd[k] * (inv_mensal[m] / wm[m])
     rows = [(k[0], k[1], v, classify(k[1])) for k, v in dd.items()]
     ptot = defaultdict(float); mon = defaultdict(lambda: defaultdict(float)); day = defaultdict(lambda: defaultdict(float))
     for date, camp, spend, prod in rows:

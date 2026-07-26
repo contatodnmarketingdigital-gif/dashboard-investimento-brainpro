@@ -20,7 +20,7 @@ def fetch(preset):
     q = urllib.parse.urlencode({
         "api_key": KEY,
         "date_preset": preset,
-        "fields": "date,datasource,campaign,spend",
+        "fields": "date,datasource,account_name,campaign,spend",
     }, safe=",")
     url = "https://connectors.windsor.ai/all?" + q
     req = urllib.request.Request(url, headers={
@@ -51,11 +51,15 @@ try:
         sp = float(row.get("spend") or 0)
         if sp <= 0:
             continue
-        recs[(date, row.get("campaign"))] = sp
+        # Soma por (data, conta, campanha) — assim campanhas de mesmo nome em contas
+        # diferentes (ex.: conta 02-TEA) NAO se sobrescrevem; captura o gasto real total.
+        key = (date, str(row.get("account_name") or ""), row.get("campaign"))
+        recs[key] = recs.get(key, 0.0) + sp
 except Exception as e:
     print(f"aviso: busca this_year falhou: {e}", file=sys.stderr)
 
-records = [{"date": k[0], "campaign": k[1], "spend": v} for k, v in recs.items() if k[0]]
+records = [{"date": k[0], "campaign": k[2], "account": k[1], "spend": v}
+           for k, v in recs.items() if k[0]]
 records.sort(key=lambda r: r["date"])
 
 if not records:
