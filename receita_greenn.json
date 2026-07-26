@@ -2,7 +2,7 @@
   "atualizado": "2026-07-26",
   "fonte": "Greenn (adm.greenn.com.br) — vendas pagas, valor líquido, por data de pagamento",
   "moeda": "BRL",
-  "webapp_url": "",
+  "webapp_url": "https://script.google.com/macros/s/AKfycbxdthtB7h2wSBGqn5j93YPUZYCWNi4aOx6PlDL9VjDH36aMyORIcT4T3WsuFvttesZS6A/exec",
   "por_mes_total": {
     "2026-06": 39081.24,
     "2026-07": 48137.12
