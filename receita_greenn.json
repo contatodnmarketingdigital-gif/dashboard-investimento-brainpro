@@ -1,11 +1,13 @@
 {
-  "atualizado": "2026-07-26",
+  "atualizado": "2026-07-26 10:26",
   "fonte": "Faturamento real (Voomp/Eduzz/Greenn). Diário estimado pelo padrão de vendas.",
   "moeda": "BRL",
   "webapp_url": "https://script.google.com/macros/s/AKfycbxdthtB7h2wSBGqn5j93YPUZYCWNi4aOx6PlDL9VjDH36aMyORIcT4T3WsuFvttesZS6A/exec",
   "por_mes_total": {
     "2026-06": 39081.24,
-    "2026-07": 227803
+    "2026-07": 227803,
+    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 39081.24,
+    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 48137.12
   },
   "por_mes_produto": {
     "2026-06": {
@@ -20,10 +22,21 @@
       "Vagal": 16152,
       "Aplicativo": 15309,
       "Outros": 594
+    },
+    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
+      "tDCS": 9447.33,
+      "Vagal": 12800.43,
+      "Aplicativo": 16833.48
+    },
+    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
+      "tDCS": 7986.56,
+      "Vagal": 19991.96,
+      "Aplicativo": 14826.23,
+      "Pós-Graduação": 5332.37
     }
   },
-  "total_ano": 266884.24,
-  "n_vendas": 138,
+  "total_ano": 354102.6,
+  "n_vendas": 7,
   "por_dia": {
     "2026-06-17": 3997.5,
     "2026-06-18": 1140.48,
