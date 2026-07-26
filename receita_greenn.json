@@ -1,19 +1,19 @@
 {
-  "atualizado": "2026-07-26",
-  "fonte": "Greenn (adm.greenn.com.br) — vendas pagas, valor líquido, por data de pagamento",
+  "atualizado": "2026-07-25 22:21",
+  "fonte": "Webhooks Greenn/Eduzz/Voomp (valor recebido, por data de pagamento)",
   "moeda": "BRL",
   "webapp_url": "https://script.google.com/macros/s/AKfycbxdthtB7h2wSBGqn5j93YPUZYCWNi4aOx6PlDL9VjDH36aMyORIcT4T3WsuFvttesZS6A/exec",
   "por_mes_total": {
-    "2026-06": 39081.24,
-    "2026-07": 48137.12
+    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 39081.24,
+    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 48137.12
   },
   "por_mes_produto": {
-    "2026-06": {
+    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
       "tDCS": 9447.33,
       "Vagal": 12800.43,
       "NeuroApp": 16833.48
     },
-    "2026-07": {
+    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
       "tDCS": 7986.56,
       "Vagal": 19991.96,
       "NeuroApp": 14826.23,
@@ -21,5 +21,5 @@
     }
   },
   "total_ano": 87218.36,
-  "n_vendas": 138
+  "n_vendas": 7
 }
