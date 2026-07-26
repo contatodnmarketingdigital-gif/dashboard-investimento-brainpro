@@ -30,9 +30,13 @@ def load_receita(path="receita_greenn.json"):
             "receitaAtualizado": r.get("atualizado", ""),
             "receitaFonte": r.get("fonte", ""),
             "webappUrl": r.get("webapp_url", ""),
+            "receitaDia": r.get("por_dia", {}),
+            "metaDefault": r.get("meta_default", 250000),
+            "supermetaDefault": r.get("supermeta_default", 300000),
         }
     except Exception:
-        return {"receitaDefault": {}, "receitaProduto": {}, "receitaAtualizado": "", "receitaFonte": "", "webappUrl": ""}
+        return {"receitaDefault": {}, "receitaProduto": {}, "receitaAtualizado": "", "receitaFonte": "", "webappUrl": "",
+                "receitaDia": {}, "metaDefault": 250000, "supermetaDefault": 300000}
 
 def build(src="data.json", out="index.html"):
     d = json.load(open(src, encoding="utf-8"))
@@ -135,6 +139,15 @@ TEMPLATE = r'''<!DOCTYPE html>
   .note-outros{background:color-mix(in srgb,var(--s4) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--s4) 40%,transparent);border-radius:11px;padding:12px 14px;font-size:12.5px;color:var(--ink2);margin-top:16px;}
   .note-outros b{color:var(--ink);}
   .hide{display:none!important;}
+  .mhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:2px 0 10px;}
+  .mtoolbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .mtoolbar label{font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:5px;}
+  input.mini{width:92px;border:1px solid var(--ring);background:var(--surface);color:var(--ink);border-radius:7px;padding:5px 8px;font-size:13px;font-family:inherit;}
+  .statuspill{font-size:13.5px;font-weight:650;padding:7px 15px;border-radius:999px;white-space:nowrap;}
+  .sp-ok{background:color-mix(in srgb,#0ca30c 15%,var(--surface));color:#0a8a0a;border:1px solid color-mix(in srgb,#0ca30c 35%,transparent);}
+  .sp-late{background:color-mix(in srgb,#f5a623 17%,var(--surface));color:#b9770f;border:1px solid color-mix(in srgb,#f5a623 42%,transparent);}
+  :root[data-theme="dark"] .sp-ok{color:#3ad13a;} :root[data-theme="dark"] .sp-late{color:#f5b53a;}
+  .lg-green{color:#0ca30c;font-weight:600;} .lg-amber{color:#e0921a;font-weight:600;}
   .tt{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--ring);border-radius:9px;padding:9px 11px;font-size:12px;color:var(--ink);box-shadow:0 6px 22px rgba(0,0,0,.16);opacity:0;transition:opacity .09s;z-index:20;min-width:150px;}
   .tt .th{font-weight:650;margin-bottom:6px;font-size:12.5px;}
   .tt .row{display:flex;justify-content:space-between;gap:14px;line-height:1.5;}
@@ -146,8 +159,8 @@ TEMPLATE = r'''<!DOCTYPE html>
 <div class="wrap">
   <header class="top">
     <div>
-      <h1>Investimento &amp; Receita · Meta Ads 2026</h1>
-      <p class="sub">BrainPro Academy · investimento <b>automático</b> da Meta (via Windsor) · <span class="pill" id="upd">atualizado</span> · receita lançada por você</p>
+      <h1>BrainPro · Corrida da Meta &amp; Faturamento 2026</h1>
+      <p class="sub">Faturamento <b>automático</b> (webhooks Greenn/Eduzz/Voomp) · investimento da Meta via Windsor · <span class="pill" id="upd">atualizado</span></p>
     </div>
     <button class="toggle" id="themeBtn">◐ Tema</button>
   </header>
@@ -159,31 +172,36 @@ TEMPLATE = r'''<!DOCTYPE html>
 
   <!-- ================= VIEW MÊS ================= -->
   <div id="viewMes">
-    <div class="toolbar">
-      <label>Mês:</label>
-      <select class="msel" id="monthSel"></select>
+    <div class="mhead">
+      <div class="mtoolbar">
+        <label>Mês: <select class="msel" id="monthSel"></select></label>
+        <label>Meta R$ <input class="mini" id="metaInp" inputmode="numeric"></label>
+        <label>Super R$ <input class="mini" id="superInp" inputmode="numeric"></label>
+      </div>
+      <div id="statusPill" class="statuspill"></div>
     </div>
-    <div class="kpis" id="kpisMes"></div>
-    <div class="revbox">
-      <label for="revMes">Receita do mês (Greenn líquido · editável):</label>
-      <input class="rev" id="revMes" inputmode="decimal" placeholder="0,00">
-      <span id="revMesHint" style="font-size:12px;color:var(--ink2)"></span>
+    <div class="kpis" id="mesKpis"></div>
+    <div class="card">
+      <h2>Corrida da meta — acumulado</h2>
+      <p class="desc">Tracejado = onde deveríamos estar. Faturado real (área azul) vs meta e super meta.</p>
+      <svg id="cCorrida" viewBox="0 0 900 380" role="img"></svg>
     </div>
     <div class="card">
-      <h2>Investimento por produto — <span id="mesTit"></span></h2>
-      <p class="desc">Quanto cada produto consumiu no mês.</p>
-      <svg id="cProdMes" viewBox="0 0 900 300" role="img"></svg>
+      <h2>Faturamento por dia</h2>
+      <p class="desc"><span class="lg-green">Verde</span> = bateu a meta do dia · <span class="lg-amber">âmbar</span> = abaixo</p>
+      <svg id="cFatDia" viewBox="0 0 900 320" role="img"></svg>
     </div>
     <div class="card">
-      <h2>Investimento × Receita por produto — <span id="mesTit2"></span></h2>
-      <p class="desc">Receita das vendas pagas (Greenn) por produto, comparada ao investimento — ROI e lucro de cada produto no mês.</p>
-      <div style="overflow-x:auto"><table id="tblProdMes"></table></div>
-    </div>
-    <div class="card">
-      <h2>Investimento diário do mês</h2>
-      <p class="desc">Gasto por dia (barras empilhadas por produto).</p>
+      <h2>Tráfego (Meta Ads) × Faturamento — <span id="mesTitTraf"></span></h2>
+      <p class="desc">Investimento em anúncios no mês e o retorno sobre ele (ROI/ROAS). Gráfico: gasto diário por produto.</p>
+      <div class="kpis" id="trafKpis"></div>
       <div class="legend" id="legendMes"></div>
-      <svg id="cDailyMes" viewBox="0 0 900 320" role="img"></svg>
+      <svg id="cDailyMes" viewBox="0 0 900 300" role="img"></svg>
+    </div>
+    <div class="card">
+      <h2>Por produto — acumulado no mês</h2>
+      <p class="desc">Faturamento por produto e participação no total do mês (vem dos webhooks Greenn/Eduzz/Voomp).</p>
+      <div class="kpis" id="prodTiles"></div>
     </div>
   </div>
 
@@ -259,7 +277,8 @@ function revVal(m){return REV[m]!=null?parseNum(REV[m]):(+RDEF[m]||0);}
 function revShow(m){return REV[m]!=null?REV[m]:(RDEF[m]!=null?(+RDEF[m]).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):"");}
 function revIsAuto(m){return REV[m]==null&&RDEF[m]!=null;}
 /* mapeia as classes de receita (Greenn/webhooks) para os produtos do dashboard */
-const REV2P={tDCS:"tDCS",Vagal:"Vagal",Pos:"Pós-Graduação",NeuroApp:"App",TEA:"TEA",Outros:"Outros"};
+const REV2P={tDCS:"tDCS",Vagal:"Vagal",Pos:"Pós-Graduação",NeuroApp:"App",TEA:"TEA",Outros:"Outros",
+  "Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Pós-Graduação","Aplicativo":"App","App":"App"};
 function revProdMonth(m){const o={};const src=RPROD[m]||{};for(const k in src){const p=REV2P[k]||"Outros";o[p]=(o[p]||0)+(+src[k]||0);}return o;}
 function revProdYear(){const o={};for(const m in RPROD){const r=revProdMonth(m);for(const p in r)o[p]=(o[p]||0)+r[p];}return o;}
 function prodRoiRows(invByProd,recByProd){const tax=taxRate();
@@ -418,8 +437,8 @@ function tblGeral(){
 }
 /* atualiza numeros derivados sem recriar inputs (nao perde foco) */
 function recalcAll(){
-  kpisAno();kpisMes();
-  if(curView==="mes")prodMesTable();else prodAnoTable();
+  kpisAno();
+  if(curView==="mes")drawMes();else prodAnoTable();
   const tf=document.querySelector("#tblGeral tfoot");
   if(tf){const T=yearTotals();const froi=T.rec>0&&T.roi!=null?`<span class="${T.roi>=0?'pos':'neg'}">${(T.roi*100).toFixed(1)}%</span>`:"—";
     tf.innerHTML=`<tr><td>Total · Ano</td><td>${brlk(T.inv)}</td><td>${brlk(T.invT)}</td><td>${brlk(T.rec)}</td><td>${froi}</td><td>${T.rec>0&&T.roas!=null?T.roas.toFixed(2)+"x":"—"}</td><td>${T.rec>0?brlk(T.lucro):"—"}</td></tr>`;}
@@ -490,8 +509,111 @@ function prod(){
 }
 function noteOutros(){document.getElementById("noteOutros").innerHTML=`<b>Sobre "Outros" (${brl(DATA.totals.Outros)}):</b> campanhas fora dos 6 produtos — Binaurais, Workshop, eventos e testes de VSL. Separadas para não inflar os produtos.`;}
 
+/* ===== NOVO MÊS: Corrida da Meta · Faturamento ===== */
+const LSMETA="brainpro_meta_2026";
+function loadMetas(){try{return JSON.parse(localStorage.getItem(LSMETA)||"{}")}catch(e){return{}}}
+function saveMetas(o){try{localStorage.setItem(LSMETA,JSON.stringify(o))}catch(e){}}
+let METAS=loadMetas();
+const RDIA=DATA.receitaDia||{};
+const METADEF=+DATA.metaDefault||250000, SUPERDEF=+DATA.supermetaDefault||300000;
+const CG="#0ca30c", CA="#f5a623";
+function metaVal(m){return METAS[m]&&METAS[m].meta!=null?+METAS[m].meta:METADEF;}
+function superVal(m){return METAS[m]&&METAS[m].sup!=null?+METAS[m].sup:SUPERDEF;}
+function daysInMonth(m){return new Date(+m.slice(0,4),+m.slice(5,7),0).getDate();}
+function fatDias(m){const o=[];for(const d in RDIA)if(d.slice(0,7)===m)o.push([+d.slice(8,10),+RDIA[d]||0]);o.sort((a,b)=>a[0]-b[0]);return o;}
+function curDay(m){const now=new Date(),y=+m.slice(0,4),mo=+m.slice(5,7),dim=daysInMonth(m);
+  if(now.getFullYear()===y&&now.getMonth()+1===mo)return Math.min(now.getDate(),dim);
+  if(now.getFullYear()>y||(now.getFullYear()===y&&now.getMonth()+1>mo))return dim;
+  const fd=fatDias(m);return fd.length?fd[fd.length-1][0]:1;}
+function invMesTotal(m){const r=DATA.monthly.find(x=>x.mes===m);return r?r.total:0;}
+
+function statusPill(m){
+  const meta=metaVal(m),fat=revVal(m),dim=daysInMonth(m),d=curDay(m),pace=meta*d/dim,delta=fat-pace,ok=delta>=0;
+  const e=document.getElementById("statusPill");
+  e.className="statuspill "+(ok?"sp-ok":"sp-late");
+  e.textContent="● "+(ok?"No ritmo":"Atrás")+" · "+(ok?"+":"−")+brlk(Math.abs(delta));
+}
+function mesKpis(m){
+  const meta=metaVal(m),sup=superVal(m),fat=revVal(m),dim=daysInMonth(m),d=curDay(m);
+  const rest=Math.max(0,dim-d),restD=Math.max(1,rest),fMeta=Math.max(0,meta-fat),fSup=Math.max(0,sup-fat);
+  document.getElementById("mesKpis").innerHTML=[
+    kpiCard("Meta do mês",brlk(meta),(meta>0?(100*fat/meta).toFixed(0):0)+"% atingido",""),
+    kpiCard("Super meta",brlk(sup),(sup>0?(100*fat/sup).toFixed(0):0)+"% atingido",""),
+    kpiCard("Faturado acum.",brlk(fat),"até o dia "+d,""),
+    kpiCard("Dias restantes",String(rest),"de "+dim+" dias",""),
+    kpiCard("Falta p/ a meta",brlk(fMeta),fMeta<=0?"meta batida! 🎉":"de "+brlk(meta),fMeta<=0?"pos":""),
+    kpiCard("Falta p/ super meta",brlk(fSup),fSup<=0?"super batida! 🎉":"de "+brlk(sup),fSup<=0?"pos":""),
+    kpiCard("Necessário/dia · meta",brlk(fMeta/restD),"p/ bater "+brlk(meta),""),
+    kpiCard("Necessário/dia · super",brlk(fSup/restD),"p/ bater "+brlk(sup),""),
+  ].join("");
+}
+function chartCorrida(m){
+  const svg=document.getElementById("cCorrida");svg.innerHTML="";
+  const W=900,H=380,mL=64,mR=22,mT=16,mB=34,pw=W-mL-mR,ph=H-mT-mB;
+  const dim=daysInMonth(m),meta=metaVal(m),sup=superVal(m),d=curDay(m);
+  const fd=fatDias(m);let running=0;const cum={};fd.forEach(p=>{running+=p[1];cum[p[0]]=running;});
+  const totFat=running;
+  const ticks=niceTicks(Math.max(sup,meta,totFat,1),5),topV=ticks[ticks.length-1];
+  const x=day=>mL+pw*((day-1)/Math.max(dim-1,1)),y=v=>mT+ph-(v/topV)*ph;
+  ticks.forEach(t=>{svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(t),y2:y(t),class:"gl"}));
+    const tx=el("text",{x:mL-8,y:y(t)+3.5,class:"ax","text-anchor":"end"});tx.textContent=brlk(t);svg.appendChild(tx);});
+  svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(sup),y2:y(sup),stroke:cssv("--s7"),"stroke-width":1.5,"stroke-dasharray":"2 4"}));
+  const sl=el("text",{x:mL+4,y:y(sup)-6,class:"axl"});sl.textContent="Super meta ("+brlk(sup)+")";sl.style.fill=cssv("--s7");svg.appendChild(sl);
+  svg.appendChild(el("line",{x1:x(1),x2:x(dim),y1:y(meta/dim),y2:y(meta),stroke:cssv("--muted"),"stroke-width":1.5,"stroke-dasharray":"6 5"}));
+  const ml=el("text",{x:x(dim)-2,y:y(meta)-6,class:"axl","text-anchor":"end"});ml.textContent="Meta ("+brlk(meta)+")";svg.appendChild(ml);
+  let run=0;const pts=[];for(let dd=1;dd<=d;dd++){if(cum[dd]!=null)run=cum[dd];pts.push([dd,run]);}
+  if(pts.length){
+    const area="M"+x(pts[0][0]).toFixed(1)+","+y(0).toFixed(1)+" "+pts.map(p=>"L"+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(" ")+" L"+x(pts[pts.length-1][0]).toFixed(1)+","+y(0).toFixed(1)+" Z";
+    svg.appendChild(el("path",{d:area,fill:cssv("--s1"),"fill-opacity":.13}));
+    const line="M"+pts.map(p=>x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(" L");
+    svg.appendChild(el("path",{d:line,fill:"none",stroke:cssv("--s1"),"stroke-width":2.5}));
+    const last=pts[pts.length-1],tl=el("text",{x:x(last[0])+6,y:y(last[1])-7,class:"ax"});tl.textContent=brlk(last[1]);tl.style.fontWeight=700;tl.style.fill=cssv("--s1");svg.appendChild(tl);
+  }
+  for(let dd=1;dd<=dim;dd+=(dim>20?5:2)){const tx=el("text",{x:x(dd),y:H-mB+20,class:"axl","text-anchor":"middle"});tx.textContent=String(dd);svg.appendChild(tx);}
+  svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(0),y2:y(0),class:"bl"}));
+}
+function chartFatDia(m){
+  const svg=document.getElementById("cFatDia");svg.innerHTML="";
+  const W=900,H=320,mL=64,mR=22,mT=16,mB=34,pw=W-mL-mR,ph=H-mT-mB;
+  const dim=daysInMonth(m),meta=metaVal(m),metaDia=meta/dim,map={};fatDias(m).forEach(p=>map[p[0]]=p[1]);
+  const ticks=niceTicks(Math.max(metaDia,...Object.values(map),1),4),top=ticks[ticks.length-1],y=v=>mT+ph-(v/top)*ph;
+  ticks.forEach(t=>{svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(t),y2:y(t),class:"gl"}));
+    const tx=el("text",{x:mL-8,y:y(t)+3.5,class:"ax","text-anchor":"end"});tx.textContent=brlk(t);svg.appendChild(tx);});
+  const band=pw/dim,bw=Math.min(22,band*0.66);
+  for(let dd=1;dd<=dim;dd++){const v=map[dd]||0;if(v<=0)continue;const cx=mL+band*(dd-0.5),h=(v/top)*ph,color=v>=metaDia?CG:CA;
+    const rect=el("rect",{x:cx-bw/2,y:y(v),width:bw,height:Math.max(h,1),rx:3,fill:color});rect.style.cursor="pointer";
+    rect.addEventListener("mousemove",e=>showTT('<div class="th">Dia '+dd+'</div><div class="row"><span class="k">Faturado</span><span>'+brl(v)+'</span></div><div class="row"><span class="k">Meta/dia</span><span>'+brl(metaDia)+'</span></div>',e.clientX,e.clientY));
+    rect.addEventListener("mouseleave",hideTT);svg.appendChild(rect);}
+  svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(metaDia),y2:y(metaDia),stroke:cssv("--muted"),"stroke-width":1.5,"stroke-dasharray":"6 5"}));
+  const ml=el("text",{x:W-mR,y:y(metaDia)-6,class:"axl","text-anchor":"end"});ml.textContent="Meta do dia ("+brl(metaDia)+")";svg.appendChild(ml);
+  for(let dd=1;dd<=dim;dd+=(dim>20?5:2)){const tx=el("text",{x:mL+band*(dd-0.5),y:H-mB+20,class:"axl","text-anchor":"middle"});tx.textContent=String(dd);svg.appendChild(tx);}
+  svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y(0),y2:y(0),class:"bl"}));
+}
+function trafKpis(m){
+  const inv=invMesTotal(m),tax=taxRate(),invT=inv*(1+tax),fat=revVal(m);
+  const roi=invT>0?(fat-invT)/invT:null,roas=invT>0?fat/invT:null,lucro=fat-invT;
+  document.getElementById("trafKpis").innerHTML=[
+    kpiCard("Investimento (mês)",brl(inv),"tráfego Meta Ads",""),
+    kpiCard("Invest. c/ imposto",brl(invT),"alíquota "+(tax*100).toFixed(2).replace(".",",")+"%",""),
+    kpiCard("ROI",roi!=null?(roi*100).toFixed(0)+"%":"—","faturado ÷ invest.",roi!=null?(roi>=0?"pos":"neg"):""),
+    kpiCard("ROAS",roas!=null?roas.toFixed(2)+"x":"—","retorno s/ anúncio",""),
+    kpiCard("Lucro",brl(lucro),"faturado − invest. c/ imp",fat>0?(lucro>=0?"pos":"neg"):""),
+  ].join("");
+  const t2=document.getElementById("mesTitTraf");if(t2)t2.textContent=MES[m]+" 2026";
+}
+const PLAT={"Pós-Graduação":"Voomp / Eduzz","tDCS":"Eduzz","Recorrência Pós":"recebida","Vagal":"Eduzz / Greenn","Aplicativo":"Greenn","App":"Greenn","TEA":"—","Impulsionamento Estratégia Instagram":"orgânico","Outros":"Neuromodulação"};
+const TILECOL=["--s1","--s2","--s3","--s4","--s5","--s7","--s6","--sOut"];
+function prodTiles(m){
+  const rp=RPROD[m]||{},fat=revVal(m)||Object.values(rp).reduce((s,v)=>s+(+v||0),0);
+  const order=Object.keys(rp).filter(k=>rp[k]>0).sort((a,b)=>rp[b]-rp[a]);
+  const html=order.map((p,i)=>{const v=+rp[p],pct=fat>0?(100*v/fat).toFixed(0):0,c=cssv(TILECOL[i%TILECOL.length]);
+    return '<div class="kpi"><div class="lab" style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:2px;background:'+c+';display:inline-block"></i>'+p+'</div><div class="val">'+brlk(v)+'</div><div class="note">'+(PLAT[p]||"")+' · '+pct+'% do faturado</div></div>';}).join("");
+  document.getElementById("prodTiles").innerHTML=html||'<div class="kpi"><div class="note">Sem receita por produto ainda — vai chegar pelos webhooks.</div></div>';
+}
+function syncMetaInputs(){document.getElementById("metaInp").value=metaVal(selMonth);document.getElementById("superInp").value=superVal(selMonth);}
+
 /* ===== render ===== */
-function drawMes(){kpisMes();fillMonthSel();syncRevMes();document.getElementById("mesTit").textContent=MES[selMonth]+" 2026";prodMes();prodMesTable();legendMes();dailyMes();}
+function drawMes(){fillMonthSel();syncMetaInputs();statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);legendMes();dailyMes();prodTiles(selMonth);}
 function drawAno(){monthly();daily();prod();}
 function renderMes(){drawMes();}
 function renderAno(){kpisAno();tblGeral();prodAnoTable();legendAno();drawAno();noteOutros();}
@@ -506,9 +628,11 @@ function switchView(v){curView=v;
 document.getElementById("tabMes").onclick=()=>switchView("mes");
 document.getElementById("tabAno").onclick=()=>switchView("ano");
 document.getElementById("monthSel").onchange=e=>{selMonth=e.target.value;renderMes();};
-document.getElementById("revMes").addEventListener("input",e=>{const v=e.target.value.trim();
-  if(v==="")delete REV[selMonth];else REV[selMonth]=parseNum(v);saveRev(REV);kpisMes();});
-document.getElementById("taxRate").addEventListener("input",()=>{recalcAll();if(curView==="mes")kpisMes();});
+document.getElementById("metaInp").addEventListener("input",e=>{const v=parseNum(e.target.value);
+  METAS[selMonth]=METAS[selMonth]||{};METAS[selMonth].meta=v||0;saveMetas(METAS);statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);});
+document.getElementById("superInp").addEventListener("input",e=>{const v=parseNum(e.target.value);
+  METAS[selMonth]=METAS[selMonth]||{};METAS[selMonth].sup=v||0;saveMetas(METAS);statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);});
+document.getElementById("taxRate").addEventListener("input",()=>{recalcAll();});
 document.getElementById("themeBtn").onclick=()=>{const r=document.documentElement;
   r.setAttribute("data-theme",r.getAttribute("data-theme")==="dark"?"light":"dark");
   if(curView==="mes")drawMes();else drawAno();};

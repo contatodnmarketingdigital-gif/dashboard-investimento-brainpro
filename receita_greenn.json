@@ -1,25 +1,59 @@
 {
-  "atualizado": "2026-07-26 07:26",
-  "fonte": "Webhooks Greenn/Eduzz/Voomp (valor recebido, por data de pagamento)",
+  "atualizado": "2026-07-26",
+  "fonte": "Faturamento real (Voomp/Eduzz/Greenn). Diário estimado pelo padrão de vendas.",
   "moeda": "BRL",
   "webapp_url": "https://script.google.com/macros/s/AKfycbxdthtB7h2wSBGqn5j93YPUZYCWNi4aOx6PlDL9VjDH36aMyORIcT4T3WsuFvttesZS6A/exec",
   "por_mes_total": {
-    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 39081.24,
-    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 48137.12
+    "2026-06": 39081.24,
+    "2026-07": 227803
   },
   "por_mes_produto": {
-    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
+    "2026-06": {
       "tDCS": 9447.33,
       "Vagal": 12800.43,
-      "NeuroApp": 16833.48
+      "Aplicativo": 16833.48
     },
-    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
-      "tDCS": 7986.56,
-      "Vagal": 19991.96,
-      "NeuroApp": 14826.23,
-      "Pos": 5332.37
+    "2026-07": {
+      "Pós-Graduação": 114948,
+      "tDCS": 34976,
+      "Recorrência Pós": 45824,
+      "Vagal": 16152,
+      "Aplicativo": 15309,
+      "Outros": 594
     }
   },
-  "total_ano": 87218.36,
-  "n_vendas": 7
+  "total_ano": 266884.24,
+  "n_vendas": 138,
+  "por_dia": {
+    "2026-06-17": 3997.5,
+    "2026-06-18": 1140.48,
+    "2026-06-19": 760.32,
+    "2026-06-21": 2538.1,
+    "2026-06-22": 1635.9,
+    "2026-06-23": 476.17,
+    "2026-06-25": 898.94,
+    "2026-06-27": 1855.16,
+    "2026-06-29": 898.94,
+    "2026-06-30": 3188.65,
+    "2026-07-01": 29741.71,
+    "2026-07-02": 4254.12,
+    "2026-07-05": 4525.19,
+    "2026-07-07": 4390.42,
+    "2026-07-08": 4254.12,
+    "2026-07-09": 13575.58,
+    "2026-07-14": 5460.97,
+    "2026-07-15": 4525.19,
+    "2026-07-16": 136.29,
+    "2026-07-17": 58905.88,
+    "2026-07-18": 3734.41,
+    "2026-07-19": 15374.64,
+    "2026-07-20": 10579.89,
+    "2026-07-21": 8123.31,
+    "2026-07-22": 6596.84,
+    "2026-07-23": 11303.8,
+    "2026-07-24": 6516.39,
+    "2026-07-25": 35804.22
+  },
+  "meta_default": 250000,
+  "supermeta_default": 300000
 }

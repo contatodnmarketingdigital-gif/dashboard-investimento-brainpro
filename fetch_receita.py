@@ -39,17 +39,36 @@ except Exception as e:
 
 pmt = d.get("por_mes_total") or {}
 pmp = d.get("por_mes_produto") or {}
+
+# normaliza rótulos das classes do webhook -> rótulos de exibição do dashboard
+LBL = {"tDCS": "tDCS", "Vagal": "Vagal", "Pos": "Pós-Graduação",
+       "NeuroApp": "Aplicativo", "TEA": "TEA", "Outros": "Outros"}
+def norm_prod(month_map):
+    o = {}
+    for k, v in (month_map or {}).items():
+        lab = LBL.get(k, k)
+        o[lab] = round(o.get(lab, 0) + float(v), 2)
+    return o
+pmp = {m: norm_prod(v) for m, v in pmp.items()}
 if not pmt:
     print("ATENCAO: receita vazia do App da Web — mantendo receita_greenn.json existente.", file=sys.stderr)
     sys.exit(0)
 
-# Atualiza apenas os campos de receita, preservando webapp_url e o resto.
-base["por_mes_total"] = {m: round(float(v), 2) for m, v in pmt.items()}
-base["por_mes_produto"] = pmp
-base["total_ano"] = round(sum(float(v) for v in pmt.values()), 2)
+# Merge por mês: só atualiza um mês se o webhook tiver MAIS receita que a base
+# (preserva os números reais já lançados; deixa crescer com vendas novas).
+mt = dict(base.get("por_mes_total", {}))
+mp = dict(base.get("por_mes_produto", {}))
+for m, v in pmt.items():
+    v = round(float(v), 2)
+    if v >= float(mt.get(m, 0)):
+        mt[m] = v
+        if m in pmp:
+            mp[m] = pmp[m]
+base["por_mes_total"] = mt
+base["por_mes_produto"] = mp
+base["total_ano"] = round(sum(float(x) for x in mt.values()), 2)
 base["n_vendas"] = d.get("n_vendas", base.get("n_vendas", 0))
 base["atualizado"] = d.get("atualizado", datetime.date.today().isoformat())
-base["fonte"] = d.get("fonte", base.get("fonte", ""))
 
 json.dump(base, open(ARQ, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 print(f"receita_greenn.json atualizado: total R$ {base['total_ano']:,.2f} em {len(pmt)} meses")
