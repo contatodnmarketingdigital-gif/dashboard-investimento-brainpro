@@ -20,6 +20,8 @@ jobs:
         run: python fetch_windsor.py || echo "fetch falhou, mantendo data.json atual"
       - name: Puxar receita (webhooks via Apps Script)
         run: python fetch_receita.py || echo "fetch receita falhou, mantendo receita_greenn.json atual"
+      - name: Sincronizar historico da planilha mestre (Apps Script ?tipo=historico)
+        run: python fetch_planilha.py || echo "fetch planilha falhou, mantendo historico_planilha.json atual"
       - name: Gerar index.html
         run: python build.py data.json index.html
       - name: Commit se mudou
