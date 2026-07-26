@@ -38,12 +38,30 @@ def load_receita(path="receita_greenn.json"):
         return {"receitaDefault": {}, "receitaProduto": {}, "receitaAtualizado": "", "receitaFonte": "", "webappUrl": "",
                 "receitaDia": {}, "metaDefault": 250000, "supermetaDefault": 300000}
 
+def load_planilha(path="historico_planilha.json"):
+    """Le o historico da planilha mestre (Google Sheets), fonte de verdade do usuario."""
+    try:
+        return json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return {}
+
 def build(src="data.json", out="index.html"):
     d = json.load(open(src, encoding="utf-8"))
     recs = d["records"]; atualizado = d.get("atualizado", "")
     dd = {}
     for r in recs:
         dd[(r["date"], r["campaign"])] = float(r["spend"])
+    # Ajusta o investimento diario/mensal (Windsor) para bater com a planilha mestre.
+    plan = load_planilha()
+    inv_mensal = plan.get("investimento_mensal", {})
+    if inv_mensal:
+        wm = defaultdict(float)
+        for (dt, camp), sp in dd.items():
+            wm[dt[:7]] += sp
+        for k in list(dd.keys()):
+            m = k[0][:7]
+            if m in inv_mensal and wm[m] > 0:
+                dd[k] = dd[k] * (inv_mensal[m] / wm[m])
     rows = [(k[0], k[1], v, classify(k[1])) for k, v in dd.items()]
     ptot = defaultdict(float); mon = defaultdict(lambda: defaultdict(float)); day = defaultdict(lambda: defaultdict(float))
     for date, camp, spend, prod in rows:
@@ -67,6 +85,14 @@ def build(src="data.json", out="index.html"):
                  "dias": len(days), "outros": totals["Outros"]},
     }
     data.update(load_receita())
+    # A planilha mestre vence para o historico (faturamento por mes/dia/produto).
+    if plan:
+        if plan.get("faturamento_mensal"): data["receitaDefault"] = plan["faturamento_mensal"]
+        if plan.get("por_dia"): data["receitaDia"] = plan["por_dia"]
+        if plan.get("por_produto_mes"): data["receitaProduto"] = plan["por_produto_mes"]
+        if plan.get("fonte"): data["receitaFonte"] = plan["fonte"]
+        if plan.get("atualizado"): data["receitaAtualizado"] = plan["atualizado"]
+        data["produtoAno"] = plan.get("produto_ano", {})
     html = TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
     open(out, "w", encoding="utf-8").write(html)
     print(f"gerado {out}: {len(rows)} registros, {len(days)} dias, total R$ {grand:,.2f}")
@@ -293,7 +319,7 @@ function prodTable(id,rows,showRoas){const t=document.getElementById(id);if(!t)r
     const roi=r.rec>0&&r.roi!=null?`<span class="${r.roi>=0?'pos':'neg'}">${(r.roi*100).toFixed(1)}%</span>`:"—";
     const roas=r.rec>0&&r.roas!=null?r.roas.toFixed(2)+"x":"—";
     const lucro=r.rec>0?`<span class="${r.lucro>=0?'pos':'neg'}">${brlk(r.lucro)}</span>`:(r.inv>0?`<span class="neg">${brlk(r.lucro)}</span>`:"—");
-    return `<tr><td>${SHORT[r.p]}</td><td>${brlk(r.inv)}</td><td>${brlk(r.invT)}</td><td>${r.rec>0?brlk(r.rec):"—"}</td><td>${roi}</td>${showRoas?`<td>${roas}</td>`:""}<td>${lucro}</td></tr>`;}).join("");
+    return `<tr><td>${SHORT[r.p]||r.p}</td><td>${brlk(r.inv)}</td><td>${brlk(r.invT)}</td><td>${r.rec>0?brlk(r.rec):"—"}</td><td>${roi}</td>${showRoas?`<td>${roas}</td>`:""}<td>${lucro}</td></tr>`;}).join("");
   const tax=taxRate(),sRoi=sInvT>0?(sRec-sInvT)/sInvT:null,sRoas=sInvT>0?sRec/sInvT:null,sLuc=sRec-sInvT;
   const froi=sRec>0&&sRoi!=null?`<span class="${sRoi>=0?'pos':'neg'}">${(sRoi*100).toFixed(1)}%</span>`:"—";
   const foot=`<tfoot><tr><td>Total</td><td>${brlk(sInv)}</td><td>${brlk(sInvT)}</td><td>${sRec>0?brlk(sRec):"—"}</td><td>${froi}</td>${showRoas?`<td>${sRec>0&&sRoas!=null?sRoas.toFixed(2)+"x":"—"}</td>`:""}<td>${sRec>0?`<span class="${sLuc>=0?'pos':'neg'}">${brlk(sLuc)}</span>`:"—"}</td></tr></tfoot>`;
@@ -301,7 +327,14 @@ function prodTable(id,rows,showRoas){const t=document.getElementById(id);if(!t)r
 function prodMesTable(){const r=DATA.monthly.find(x=>x.mes===selMonth)||{};const inv={};PRODUCTS.forEach(p=>{if(r[p]>0)inv[p]=r[p];});
   prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),false);
   const el2=document.getElementById("mesTit2");if(el2)el2.textContent=MES[selMonth]+" 2026";}
-function prodAnoTable(){const inv={};PRODUCTS.forEach(p=>{if(DATA.totals[p]>0)inv[p]=DATA.totals[p];});
+function prodAnoTable(){
+  const pa=DATA.produtoAno||{};
+  if(Object.keys(pa).length){const tax=taxRate();
+    const rows=Object.keys(pa).sort((a,b)=>(+pa[b].fat||0)-(+pa[a].fat||0)).map(p=>{
+      const inv=+pa[p].inv||0,invT=inv*(1+tax),rec=+pa[p].fat||0;
+      return {p,inv,invT,rec,roi:invT>0?(rec-invT)/invT:null,roas:invT>0?rec/invT:null,lucro:rec-invT};});
+    prodTable("tblProdAno",rows,true);return;}
+  const inv={};PRODUCTS.forEach(p=>{if(DATA.totals[p]>0)inv[p]=DATA.totals[p];});
   prodTable("tblProdAno",prodRoiRows(inv,revProdYear()),true);}
 
 function showTT(html,x,y){tt.innerHTML=html;tt.style.opacity=1;let nx=x+14,ny=y+14;const r=tt.getBoundingClientRect();
