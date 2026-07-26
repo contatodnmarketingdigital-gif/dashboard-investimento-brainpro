@@ -29,9 +29,10 @@ def load_receita(path="receita_greenn.json"):
             "receitaProduto": r.get("por_mes_produto", {}),
             "receitaAtualizado": r.get("atualizado", ""),
             "receitaFonte": r.get("fonte", ""),
+            "webappUrl": r.get("webapp_url", ""),
         }
     except Exception:
-        return {"receitaDefault": {}, "receitaProduto": {}, "receitaAtualizado": "", "receitaFonte": ""}
+        return {"receitaDefault": {}, "receitaProduto": {}, "receitaAtualizado": "", "receitaFonte": "", "webappUrl": ""}
 
 def build(src="data.json", out="index.html"):
     d = json.load(open(src, encoding="utf-8"))
@@ -174,6 +175,11 @@ TEMPLATE = r'''<!DOCTYPE html>
       <svg id="cProdMes" viewBox="0 0 900 300" role="img"></svg>
     </div>
     <div class="card">
+      <h2>Investimento × Receita por produto — <span id="mesTit2"></span></h2>
+      <p class="desc">Receita das vendas pagas (Greenn) por produto, comparada ao investimento — ROI e lucro de cada produto no mês.</p>
+      <div style="overflow-x:auto"><table id="tblProdMes"></table></div>
+    </div>
+    <div class="card">
       <h2>Investimento diário do mês</h2>
       <p class="desc">Gasto por dia (barras empilhadas por produto).</p>
       <div class="legend" id="legendMes"></div>
@@ -194,6 +200,11 @@ TEMPLATE = r'''<!DOCTYPE html>
         <input type="file" id="impFile" accept="application/json" style="display:none">
       </div>
       <div style="overflow-x:auto"><table id="tblGeral"></table></div>
+    </div>
+    <div class="card">
+      <h2>Investimento × Receita por produto — ano</h2>
+      <p class="desc">Total do ano: receita (Greenn) e investimento por produto, com ROI, ROAS e lucro de cada um.</p>
+      <div style="overflow-x:auto"><table id="tblProdAno"></table></div>
     </div>
     <div class="card">
       <h2>Investimento por mês e produto</h2>
@@ -247,6 +258,32 @@ function parseNum(s){return parseFloat(String(s).replace(/\./g,'').replace(',','
 function revVal(m){return REV[m]!=null?parseNum(REV[m]):(+RDEF[m]||0);}
 function revShow(m){return REV[m]!=null?REV[m]:(RDEF[m]!=null?(+RDEF[m]).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):"");}
 function revIsAuto(m){return REV[m]==null&&RDEF[m]!=null;}
+/* mapeia as classes de receita (Greenn/webhooks) para os produtos do dashboard */
+const REV2P={tDCS:"tDCS",Vagal:"Vagal",Pos:"Pós-Graduação",NeuroApp:"App",TEA:"TEA",Outros:"Outros"};
+function revProdMonth(m){const o={};const src=RPROD[m]||{};for(const k in src){const p=REV2P[k]||"Outros";o[p]=(o[p]||0)+(+src[k]||0);}return o;}
+function revProdYear(){const o={};for(const m in RPROD){const r=revProdMonth(m);for(const p in r)o[p]=(o[p]||0)+r[p];}return o;}
+function prodRoiRows(invByProd,recByProd){const tax=taxRate();
+  const set=new Set([...Object.keys(invByProd),...Object.keys(recByProd)]);
+  const order=PRODUCTS.filter(p=>set.has(p));
+  return order.map(p=>{const inv=+invByProd[p]||0,invT=inv*(1+tax),rec=+recByProd[p]||0;
+    return {p,inv,invT,rec,roi:invT>0?(rec-invT)/invT:null,roas:invT>0?rec/invT:null,lucro:rec-invT};});}
+function prodTable(id,rows,showRoas){const t=document.getElementById(id);if(!t)return;
+  const head=`<thead><tr><th>Produto</th><th>Investimento</th><th>Invest. c/ imp.</th><th>Receita</th><th>ROI</th>${showRoas?"<th>ROAS</th>":""}<th>Lucro</th></tr></thead>`;
+  let sInv=0,sInvT=0,sRec=0;
+  const body=rows.map(r=>{sInv+=r.inv;sInvT+=r.invT;sRec+=r.rec;
+    const roi=r.rec>0&&r.roi!=null?`<span class="${r.roi>=0?'pos':'neg'}">${(r.roi*100).toFixed(1)}%</span>`:"—";
+    const roas=r.rec>0&&r.roas!=null?r.roas.toFixed(2)+"x":"—";
+    const lucro=r.rec>0?`<span class="${r.lucro>=0?'pos':'neg'}">${brlk(r.lucro)}</span>`:(r.inv>0?`<span class="neg">${brlk(r.lucro)}</span>`:"—");
+    return `<tr><td>${SHORT[r.p]}</td><td>${brlk(r.inv)}</td><td>${brlk(r.invT)}</td><td>${r.rec>0?brlk(r.rec):"—"}</td><td>${roi}</td>${showRoas?`<td>${roas}</td>`:""}<td>${lucro}</td></tr>`;}).join("");
+  const tax=taxRate(),sRoi=sInvT>0?(sRec-sInvT)/sInvT:null,sRoas=sInvT>0?sRec/sInvT:null,sLuc=sRec-sInvT;
+  const froi=sRec>0&&sRoi!=null?`<span class="${sRoi>=0?'pos':'neg'}">${(sRoi*100).toFixed(1)}%</span>`:"—";
+  const foot=`<tfoot><tr><td>Total</td><td>${brlk(sInv)}</td><td>${brlk(sInvT)}</td><td>${sRec>0?brlk(sRec):"—"}</td><td>${froi}</td>${showRoas?`<td>${sRec>0&&sRoas!=null?sRoas.toFixed(2)+"x":"—"}</td>`:""}<td>${sRec>0?`<span class="${sLuc>=0?'pos':'neg'}">${brlk(sLuc)}</span>`:"—"}</td></tr></tfoot>`;
+  t.innerHTML=head+"<tbody>"+(body||`<tr><td colspan="7" style="text-align:center;color:var(--ink2)">Sem dados</td></tr>`)+"</tbody>"+foot;}
+function prodMesTable(){const r=DATA.monthly.find(x=>x.mes===selMonth)||{};const inv={};PRODUCTS.forEach(p=>{if(r[p]>0)inv[p]=r[p];});
+  prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),false);
+  const el2=document.getElementById("mesTit2");if(el2)el2.textContent=MES[selMonth]+" 2026";}
+function prodAnoTable(){const inv={};PRODUCTS.forEach(p=>{if(DATA.totals[p]>0)inv[p]=DATA.totals[p];});
+  prodTable("tblProdAno",prodRoiRows(inv,revProdYear()),true);}
 
 function showTT(html,x,y){tt.innerHTML=html;tt.style.opacity=1;let nx=x+14,ny=y+14;const r=tt.getBoundingClientRect();
   if(nx+r.width>window.innerWidth-8)nx=x-r.width-14;if(ny+r.height>window.innerHeight-8)ny=y-r.height-14;
@@ -382,6 +419,7 @@ function tblGeral(){
 /* atualiza numeros derivados sem recriar inputs (nao perde foco) */
 function recalcAll(){
   kpisAno();kpisMes();
+  if(curView==="mes")prodMesTable();else prodAnoTable();
   const tf=document.querySelector("#tblGeral tfoot");
   if(tf){const T=yearTotals();const froi=T.rec>0&&T.roi!=null?`<span class="${T.roi>=0?'pos':'neg'}">${(T.roi*100).toFixed(1)}%</span>`:"—";
     tf.innerHTML=`<tr><td>Total · Ano</td><td>${brlk(T.inv)}</td><td>${brlk(T.invT)}</td><td>${brlk(T.rec)}</td><td>${froi}</td><td>${T.rec>0&&T.roas!=null?T.roas.toFixed(2)+"x":"—"}</td><td>${T.rec>0?brlk(T.lucro):"—"}</td></tr>`;}
@@ -453,10 +491,10 @@ function prod(){
 function noteOutros(){document.getElementById("noteOutros").innerHTML=`<b>Sobre "Outros" (${brl(DATA.totals.Outros)}):</b> campanhas fora dos 6 produtos — Binaurais, Workshop, eventos e testes de VSL. Separadas para não inflar os produtos.`;}
 
 /* ===== render ===== */
-function drawMes(){kpisMes();fillMonthSel();syncRevMes();document.getElementById("mesTit").textContent=MES[selMonth]+" 2026";prodMes();legendMes();dailyMes();}
+function drawMes(){kpisMes();fillMonthSel();syncRevMes();document.getElementById("mesTit").textContent=MES[selMonth]+" 2026";prodMes();prodMesTable();legendMes();dailyMes();}
 function drawAno(){monthly();daily();prod();}
 function renderMes(){drawMes();}
-function renderAno(){kpisAno();tblGeral();legendAno();drawAno();noteOutros();}
+function renderAno(){kpisAno();tblGeral();prodAnoTable();legendAno();drawAno();noteOutros();}
 
 function switchView(v){curView=v;
   document.getElementById("viewMes").classList.toggle("hide",v!=="mes");
@@ -480,9 +518,34 @@ document.getElementById("impBtn").onclick=()=>document.getElementById("impFile")
 document.getElementById("impFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();
   rd.onload=()=>{try{const o=JSON.parse(rd.result);if(o.receita){REV=o.receita;saveRev(REV);}if(o.imposto)document.getElementById("taxRate").value=o.imposto;switchView(curView);}catch(err){alert("Arquivo inválido");}};rd.readAsText(f);};
 
+/* ===== Receita AO VIVO (webhooks Greenn/Eduzz/Voomp via Apps Script) ===== */
+function liveRevenue(){
+  const url=DATA.webappUrl;
+  if(!url) return;                       // ainda não configurado -> usa receita embutida
+  const cb="__rev_"+Math.floor(performance.now());
+  const s=document.createElement("script");
+  const timer=setTimeout(()=>{try{delete window[cb];s.remove();}catch(e){}},12000);
+  window[cb]=function(res){
+    clearTimeout(timer);
+    try{
+      if(res&&res.por_mes_total&&Object.keys(res.por_mes_total).length){
+        for(const m in res.por_mes_total) RDEF[m]=res.por_mes_total[m];
+        if(res.por_mes_produto) for(const m in res.por_mes_produto) RPROD[m]=res.por_mes_produto[m];
+        const badge=document.getElementById("upd");
+        if(badge&&res.atualizado) badge.textContent="receita ao vivo · "+res.atualizado;
+        switchView(curView);            // re-renderiza com os números ao vivo
+      }
+    }catch(e){}
+    try{delete window[cb];s.remove();}catch(e){}
+  };
+  s.src=url+(url.indexOf("?")>-1?"&":"?")+"callback="+cb+"&_="+Math.floor(performance.now());
+  s.onerror=function(){clearTimeout(timer);try{delete window[cb];s.remove();}catch(e){}};
+  document.body.appendChild(s);
+}
 function boot(){document.getElementById("upd").textContent="atualizado em "+(DATA.atualizado?DATA.atualizado.split("-").reverse().join("/"):"—");
   if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.setAttribute("data-theme","dark");
-  switchView("mes");}
+  switchView("mes");
+  liveRevenue();}
 boot();
 </script>
 </body>
