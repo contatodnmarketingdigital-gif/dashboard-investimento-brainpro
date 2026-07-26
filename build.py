@@ -84,14 +84,37 @@ def build(src="data.json", out="index.html"):
                  "n_produtos": len(active), "media_diaria": round(grand / len(days), 2) if days else 0,
                  "dias": len(days), "outros": totals["Outros"]},
     }
-    data.update(load_receita())
-    # A planilha mestre vence para o historico (faturamento por mes/dia/produto).
+    whook = load_receita()
+    data.update(whook)
+    # Faturamento = VALORES RECEBIDOS nas plataformas (webhooks Greenn/Eduzz/Voomp).
+    # A planilha entra para os meses em que ela tem mais que o recebido (historico
+    # que os webhooks ainda nao cobriam). Regra por mes: vence o MAIOR valor.
     if plan:
-        if plan.get("faturamento_mensal"): data["receitaDefault"] = plan["faturamento_mensal"]
-        if plan.get("por_dia"): data["receitaDia"] = plan["por_dia"]
-        if plan.get("por_produto_mes"): data["receitaProduto"] = plan["por_produto_mes"]
-        if plan.get("fonte"): data["receitaFonte"] = plan["fonte"]
-        if plan.get("atualizado"): data["receitaAtualizado"] = plan["atualizado"]
+        fat_w = {k: float(v) for k, v in (whook.get("receitaDefault") or {}).items()}
+        fat_p = {k: float(v) for k, v in (plan.get("faturamento_mensal") or {}).items()}
+        prod_w = whook.get("receitaProduto") or {}
+        prod_p = plan.get("por_produto_mes") or {}
+        dia_w = whook.get("receitaDia") or {}
+        dia_p = plan.get("por_dia") or {}
+        fat, prod, winner = {}, {}, {}
+        for m in sorted(set(fat_w) | set(fat_p)):
+            vw, vp = fat_w.get(m, 0.0), fat_p.get(m, 0.0)
+            if vw >= vp and vw > 0:
+                winner[m] = "w"; fat[m] = round(vw, 2)
+                if m in prod_w: prod[m] = prod_w[m]
+            else:
+                winner[m] = "p"; fat[m] = round(vp, 2)
+                if m in prod_p: prod[m] = prod_p[m]
+        dia = {}
+        for d, v in dia_w.items():
+            if winner.get(d[:7]) == "w": dia[d] = v
+        for d, v in dia_p.items():
+            if winner.get(d[:7]) == "p": dia[d] = v
+        data["receitaDefault"] = fat
+        data["receitaProduto"] = prod
+        data["receitaDia"] = dia
+        data["receitaFonte"] = "Valores recebidos nas plataformas (Greenn/Eduzz/Voomp); meses anteriores pela planilha mestre."
+        data["receitaAtualizado"] = plan.get("atualizado") or whook.get("receitaAtualizado", "")
         data["produtoAno"] = plan.get("produto_ano", {})
     html = TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
     open(out, "w", encoding="utf-8").write(html)
@@ -116,6 +139,11 @@ TEMPLATE = r'''<!DOCTYPE html>
   body{margin:0;background:var(--plane);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;}
   .wrap{max-width:1180px;margin:0 auto;padding:24px 22px 60px;}
   header.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:10px;}
+  .brand{display:flex;align-items:center;gap:13px;}
+  .logo{flex:none;display:block;width:52px;height:38px;}
+  .bp1{color:var(--ink);font-weight:800;}
+  .bp2{color:#2f86e0;font-weight:800;}
+  .htail{color:var(--ink2);font-weight:500;}
   h1{font-size:22px;line-height:1.2;margin:0 0 4px;letter-spacing:-.01em;}
   .sub{color:var(--ink2);font-size:13px;margin:0;}
   .sub b{color:var(--ink);font-weight:600;}
@@ -184,9 +212,16 @@ TEMPLATE = r'''<!DOCTYPE html>
 <body>
 <div class="wrap">
   <header class="top">
-    <div>
-      <h1>BrainPro · Corrida da Meta &amp; Faturamento 2026</h1>
-      <p class="sub">Faturamento <b>automático</b> (webhooks Greenn/Eduzz/Voomp) · investimento da Meta via Windsor · <span class="pill" id="upd">atualizado</span></p>
+    <div class="brand">
+      <svg class="logo" width="52" height="38" viewBox="0 0 52 38" aria-label="BrainPro">
+        <path d="M6 33 A20 20 0 0 1 46 33" fill="none" stroke="#2a5db0" stroke-width="4.6" stroke-linecap="round"/>
+        <path d="M13.5 33 A12.5 12.5 0 0 1 38.5 33" fill="none" stroke="#2f86e0" stroke-width="4.6" stroke-linecap="round"/>
+        <path d="M21 33 A5 5 0 0 1 31 33" fill="none" stroke="#7ab3ec" stroke-width="4.6" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <h1><span class="bp1">Brain</span><span class="bp2">Pro</span> <span class="htail">· Corrida da Meta &amp; Faturamento 2026</span></h1>
+        <p class="sub">Faturamento <b>recebido</b> das plataformas (Greenn/Eduzz/Voomp) · investimento da Meta via Windsor · <span class="pill" id="upd">atualizado</span></p>
+      </div>
     </div>
     <button class="toggle" id="themeBtn">◐ Tema</button>
   </header>
