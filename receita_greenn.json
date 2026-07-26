@@ -1,0 +1,24 @@
+{
+  "atualizado": "2026-07-26",
+  "fonte": "Greenn (adm.greenn.com.br) — vendas pagas, valor líquido, por data de pagamento",
+  "moeda": "BRL",
+  "por_mes_total": {
+    "2026-06": 39081.24,
+    "2026-07": 48137.12
+  },
+  "por_mes_produto": {
+    "2026-06": {
+      "tDCS": 9447.33,
+      "Vagal": 12800.43,
+      "NeuroApp": 16833.48
+    },
+    "2026-07": {
+      "tDCS": 7986.56,
+      "Vagal": 19991.96,
+      "NeuroApp": 14826.23,
+      "Pos": 5332.37
+    }
+  },
+  "total_ano": 87218.36,
+  "n_vendas": 138
+}

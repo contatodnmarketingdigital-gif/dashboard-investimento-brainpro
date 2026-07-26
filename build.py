@@ -19,6 +19,20 @@ def classify(c):
         return "Impulsionamento Estratégia Instagram"
     return "Outros"
 
+def load_receita(path="receita_greenn.json"):
+    """Le a receita real do Greenn (se existir) para pre-preencher o dashboard.
+    Nunca falha: se o arquivo nao existir, retorna vazio."""
+    try:
+        r = json.load(open(path, encoding="utf-8"))
+        return {
+            "receitaDefault": r.get("por_mes_total", {}),
+            "receitaProduto": r.get("por_mes_produto", {}),
+            "receitaAtualizado": r.get("atualizado", ""),
+            "receitaFonte": r.get("fonte", ""),
+        }
+    except Exception:
+        return {"receitaDefault": {}, "receitaProduto": {}, "receitaAtualizado": "", "receitaFonte": ""}
+
 def build(src="data.json", out="index.html"):
     d = json.load(open(src, encoding="utf-8"))
     recs = d["records"]; atualizado = d.get("atualizado", "")
@@ -47,6 +61,7 @@ def build(src="data.json", out="index.html"):
                  "n_produtos": len(active), "media_diaria": round(grand / len(days), 2) if days else 0,
                  "dias": len(days), "outros": totals["Outros"]},
     }
+    data.update(load_receita())
     html = TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
     open(out, "w", encoding="utf-8").write(html)
     print(f"gerado {out}: {len(rows)} registros, {len(days)} dias, total R$ {grand:,.2f}")
@@ -149,7 +164,7 @@ TEMPLATE = r'''<!DOCTYPE html>
     </div>
     <div class="kpis" id="kpisMes"></div>
     <div class="revbox">
-      <label for="revMes">Receita (faturamento) do mês:</label>
+      <label for="revMes">Receita do mês (Greenn líquido · editável):</label>
       <input class="rev" id="revMes" inputmode="decimal" placeholder="0,00">
       <span id="revMesHint" style="font-size:12px;color:var(--ink2)"></span>
     </div>
@@ -171,7 +186,7 @@ TEMPLATE = r'''<!DOCTYPE html>
     <div class="kpis" id="kpisAno"></div>
     <div class="card">
       <h2>Visão geral do ano — mês a mês</h2>
-      <p class="desc">O investimento entra sozinho da Meta. Digite a <b>receita</b> de cada mês — ROI, ROAS e lucro calculam na hora. Fica salvo no seu navegador.</p>
+      <p class="desc">O investimento entra sozinho da Meta. A <b>receita</b> já vem preenchida com as vendas pagas do <b>Greenn</b> (valor líquido) — ROI, ROAS e lucro calculam na hora. Você pode editar qualquer mês (ex.: somar Eduzz/Voomp); o que digitar fica salvo no seu navegador e vence o valor do Greenn.</p>
       <div class="toolbar">
         <label>Imposto sobre investimento: <input class="rev tax" id="taxRate" type="number" step="0.01" value="13.83"> %</label>
         <button class="btn" id="expBtn">⬇ Baixar receita (backup)</button>
@@ -224,8 +239,14 @@ const LS="brainpro_receita_2026";
 function loadRev(){try{return JSON.parse(localStorage.getItem(LS)||"{}")}catch(e){return {}}}
 function saveRev(o){try{localStorage.setItem(LS,JSON.stringify(o))}catch(e){}}
 let REV=loadRev();
+const RDEF=DATA.receitaDefault||{};              /* receita real do Greenn (liquido) */
+const RPROD=DATA.receitaProduto||{};
 function taxRate(){const v=parseFloat(document.getElementById("taxRate").value);return isNaN(v)?0:v/100;}
 function parseNum(s){return parseFloat(String(s).replace(/\./g,'').replace(',','.').trim())||0;}
+/* valor efetivo da receita do mes: o que voce digitou vence; senao usa o real do Greenn */
+function revVal(m){return REV[m]!=null?parseNum(REV[m]):(+RDEF[m]||0);}
+function revShow(m){return REV[m]!=null?REV[m]:(RDEF[m]!=null?(+RDEF[m]).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):"");}
+function revIsAuto(m){return REV[m]==null&&RDEF[m]!=null;}
 
 function showTT(html,x,y){tt.innerHTML=html;tt.style.opacity=1;let nx=x+14,ny=y+14;const r=tt.getBoundingClientRect();
   if(nx+r.width>window.innerWidth-8)nx=x-r.width-14;if(ny+r.height>window.innerHeight-8)ny=y-r.height-14;
@@ -237,7 +258,7 @@ function niceTicks(max,count){const raw=(max||1)/count;const mag=Math.pow(10,Mat
 
 function computeMonth(mk){
   const r=DATA.monthly.find(x=>x.mes===mk)||{total:0};
-  const inv=r.total,tax=taxRate(),invT=inv*(1+tax),rec=parseFloat(REV[mk])||0;
+  const inv=r.total,tax=taxRate(),invT=inv*(1+tax),rec=revVal(mk);
   return {inv,invT,rec,roi:invT>0?(rec-invT)/invT:null,roas:invT>0?rec/invT:null,lucro:rec-invT,row:r};
 }
 function yearTotals(){let inv=0,invT=0,rec=0;DATA.monthly.forEach(r=>{const c=computeMonth(r.mes);inv+=c.inv;invT+=c.invT;rec+=c.rec;});
@@ -278,8 +299,10 @@ function fillMonthSel(){
 }
 function syncRevMes(){
   const inp=document.getElementById("revMes");
-  inp.value=REV[selMonth]!=null?REV[selMonth]:"";
-  document.getElementById("revMesHint").textContent="(mês de "+MES[selMonth]+")";
+  inp.value=revShow(selMonth);
+  document.getElementById("revMesHint").textContent=revIsAuto(selMonth)
+    ?"(Greenn líquido · "+MES[selMonth]+" · edite se quiser somar Eduzz/Voomp)"
+    :"(mês de "+MES[selMonth]+")";
 }
 
 /* ===== charts MÊS ===== */
@@ -344,7 +367,7 @@ function tblGeral(){
     const roas=c.rec>0&&c.roas!=null?c.roas.toFixed(2)+"x":"—";
     const lucro=c.rec>0?`<span class="${c.lucro>=0?'pos':'neg'}">${brlk(c.lucro)}</span>`:"—";
     body+=`<tr><td>${MESC[r.mes]}</td><td>${hasInv?brlk(c.inv):"—"}</td><td>${hasInv?brlk(c.invT):"—"}</td>`+
-      `<td><input class="rev" data-m="${r.mes}" inputmode="decimal" value="${REV[r.mes]!=null?REV[r.mes]:''}" placeholder="0"></td>`+
+      `<td><input class="rev" data-m="${r.mes}" inputmode="decimal" value="${revShow(r.mes)}" placeholder="0"></td>`+
       `<td>${roi}</td><td>${roas}</td><td>${lucro}</td></tr>`;});
   body+="</tbody>";
   const T=yearTotals();
