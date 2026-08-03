@@ -6,7 +6,7 @@ Investimento = Meta (automatico). Receita = lancada pelo usuario (localStorage).
 import json, re
 from collections import defaultdict
 
-PRODUCTS = ["Pós-Graduação","TEA","tDCS","Vagal","App","Impulsionamento Estratégia Instagram","Outros"]
+PRODUCTS = ["Pós-Graduação","Recorrência Pós","TEA","tDCS","Vagal","App","Impulsionamento Estratégia Instagram","Outros"]
 
 def classify(c):
     u = c.upper()
@@ -122,11 +122,11 @@ TEMPLATE = r'''<!DOCTYPE html>
 <style>
   :root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
     --grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
-    --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--sOut:#9a988f;
+    --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#7b61c9;--sOut:#9a988f;
     --good:#006300;--bad:#c0392b;--accent:#2a78d6;}
   :root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;
     --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
-    --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--sOut:#8a887f;
+    --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9b82e0;--sOut:#8a887f;
     --good:#0ca30c;--bad:#e66767;--accent:#3987e5;}
   *{box-sizing:border-box}
   body{margin:0;background:var(--plane);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;}
@@ -257,12 +257,6 @@ TEMPLATE = r'''<!DOCTYPE html>
       <p class="desc">Faturamento por produto e participação no total do mês (vem dos webhooks Greenn/Eduzz/Voomp).</p>
       <div class="kpis" id="prodTiles"></div>
     </div>
-    <div class="card">
-      <h2>Investido × Faturado por produto — <span id="mesTitIF"></span></h2>
-      <p class="desc">Barras: <b style="color:#e0921a">investido</b> em tráfego (Meta) vs <b style="color:#0ca30c">faturado</b>, por produto. A tabela abaixo traz ROI, ROAS e lucro de cada um.</p>
-      <svg id="cInvFat" viewBox="0 0 900 320" role="img"></svg>
-      <div style="overflow-x:auto;margin-top:12px"><table id="tblProdMes"></table></div>
-    </div>
   </div>
 
   <!-- ================= VIEW ANO ================= -->
@@ -281,7 +275,7 @@ TEMPLATE = r'''<!DOCTYPE html>
     </div>
     <div class="card">
       <h2>Investimento × Receita por produto — ano</h2>
-      <p class="desc">Investimento real (Meta) e faturamento por produto no ano, com ROI, ROAS e lucro. Inclui todos os produtos com investimento (Vagal, App etc.).</p>
+      <p class="desc">Total do ano: receita (Greenn) e investimento por produto, com ROI, ROAS e lucro de cada um.</p>
       <div style="overflow-x:auto"><table id="tblProdAno"></table></div>
     </div>
     <div class="card">
@@ -311,8 +305,8 @@ TEMPLATE = r'''<!DOCTYPE html>
 <script>
 const DATA = __DATA__;
 const PRODUCTS = DATA.products;
-const COLORVAR = {"Pós-Graduação":"--s1","TEA":"--s2","tDCS":"--s3","Vagal":"--s4","App":"--s5","Impulsionamento Estratégia Instagram":"--s6","Outros":"--sOut"};
-const SHORT = {"Pós-Graduação":"Pós-Graduação","TEA":"TEA","tDCS":"tDCS","Vagal":"Vagal","App":"App","Impulsionamento Estratégia Instagram":"Impulsionamento","Outros":"Outros"};
+const COLORVAR = {"Pós-Graduação":"--s1","Recorrência Pós":"--s7","TEA":"--s2","tDCS":"--s3","Vagal":"--s4","App":"--s5","Impulsionamento Estratégia Instagram":"--s6","Outros":"--sOut"};
+const SHORT = {"Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Recorrência Pós","TEA":"TEA","tDCS":"tDCS","Vagal":"Vagal","App":"App","Impulsionamento Estratégia Instagram":"Impulsionamento","Outros":"Outros"};
 const MES = {"2026-01":"Janeiro","2026-02":"Fevereiro","2026-03":"Março","2026-04":"Abril","2026-05":"Maio","2026-06":"Junho","2026-07":"Julho","2026-08":"Agosto","2026-09":"Setembro","2026-10":"Outubro","2026-11":"Novembro","2026-12":"Dezembro"};
 const MESC = {"2026-01":"Jan","2026-02":"Fev","2026-03":"Mar","2026-04":"Abr","2026-05":"Mai","2026-06":"Jun","2026-07":"Jul","2026-08":"Ago","2026-09":"Set","2026-10":"Out","2026-11":"Nov","2026-12":"Dez"};
 const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -338,7 +332,7 @@ function revShow(m){return REV[m]!=null?REV[m]:(RDEF[m]!=null?(+RDEF[m]).toLocal
 function revIsAuto(m){return REV[m]==null&&RDEF[m]!=null;}
 /* mapeia as classes de receita (Greenn/webhooks) para os produtos do dashboard */
 const REV2P={tDCS:"tDCS",Vagal:"Vagal",Pos:"Pós-Graduação",NeuroApp:"App",TEA:"TEA",Outros:"Outros",
-  "Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Pós-Graduação","Aplicativo":"App","App":"App"};
+  "Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Recorrência Pós","Aplicativo":"App","App":"App"};
 function revProdMonth(m){const o={};const src=RPROD[m]||{};for(const k in src){const p=REV2P[k]||"Outros";o[p]=(o[p]||0)+(+src[k]||0);}return o;}
 function revProdYear(){const o={};for(const m in RPROD){const r=revProdMonth(m);for(const p in r)o[p]=(o[p]||0)+r[p];}return o;}
 function prodRoiRows(invByProd,recByProd){const tax=taxRate();
@@ -359,41 +353,17 @@ function prodTable(id,rows,showRoas){const t=document.getElementById(id);if(!t)r
   const foot=`<tfoot><tr><td>Total</td><td>${brlk(sInv)}</td><td>${brlk(sInvT)}</td><td>${sRec>0?brlk(sRec):"—"}</td><td>${froi}</td>${showRoas?`<td>${sRec>0&&sRoas!=null?sRoas.toFixed(2)+"x":"—"}</td>`:""}<td>${sRec>0?`<span class="${sLuc>=0?'pos':'neg'}">${brlk(sLuc)}</span>`:"—"}</td></tr></tfoot>`;
   t.innerHTML=head+"<tbody>"+(body||`<tr><td colspan="7" style="text-align:center;color:var(--ink2)">Sem dados</td></tr>`)+"</tbody>"+foot;}
 function prodMesTable(){const r=DATA.monthly.find(x=>x.mes===selMonth)||{};const inv={};PRODUCTS.forEach(p=>{if(r[p]>0)inv[p]=r[p];});
-  prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),true);
-  const el2=document.getElementById("mesTitIF");if(el2)el2.textContent=MES[selMonth]+" 2026";}
+  prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),false);
+  const el2=document.getElementById("mesTit2");if(el2)el2.textContent=MES[selMonth]+" 2026";}
 function prodAnoTable(){
-  /* Investimento real (Meta, por produto) + faturamento por produto.
-     Usa o faturamento anual da planilha-mestre quando existe; senão o recebido.
-     Assim TODO produto com investimento aparece (inclui Vagal). */
-  const pa=DATA.produtoAno||{}, rec=revProdYear();
-  const invByProd={}, recByProd={};
-  PRODUCTS.forEach(p=>{
-    const iv=+DATA.totals[p]||0;
-    const paFat=(pa[p]!=null)?(+pa[p].fat||0):null;
-    const rc=(paFat!=null)?paFat:(+rec[p]||0);
-    if(iv>0||rc>0){invByProd[p]=iv;recByProd[p]=rc;}
-  });
-  prodTable("tblProdAno",prodRoiRows(invByProd,recByProd),true);}
-/* ===== MÊS: Investido × Faturado por produto (barras) ===== */
-function chartInvFat(m){
-  const svg=document.getElementById("cInvFat");if(!svg)return;svg.innerHTML="";
-  const r=DATA.monthly.find(x=>x.mes===m)||{}, rp=revProdMonth(m);
-  const set=new Set();PRODUCTS.forEach(p=>{if((r[p]||0)>0||(rp[p]||0)>0)set.add(p);});
-  const list=[...set].sort((a,b)=>((rp[b]||0)+(r[b]||0))-((rp[a]||0)+(r[a]||0)));
-  const W=900,mL=150,mR=95,mT=10,mB=10,rowH=46,H=Math.max(110,mT+mB+list.length*rowH);
-  svg.setAttribute("viewBox","0 0 "+W+" "+H);
-  if(!list.length){const t=el("text",{x:W/2,y:H/2,class:"axl","text-anchor":"middle"});t.textContent="Sem dados neste mês";svg.appendChild(t);return;}
-  const pw=W-mL-mR,maxV=Math.max(1,...list.map(p=>Math.max(r[p]||0,rp[p]||0))),CINV="#e0921a",CFAT="#0ca30c",bh=13;
-  list.forEach((p,i)=>{const cy=mT+rowH*i+rowH/2, iv=r[p]||0, fv=rp[p]||0;
-    const lab=el("text",{x:mL-10,y:cy+4,class:"axl","text-anchor":"end"});lab.textContent=SHORT[p];svg.appendChild(lab);
-    const wi=(iv/maxV)*pw;const ri=el("rect",{x:mL,y:cy-bh-2,width:Math.max(wi,1),height:bh,rx:3,fill:CINV});ri.style.cursor="pointer";
-    ri.addEventListener("mousemove",e=>showTT('<div class="th">'+SHORT[p]+'</div><div class="row"><span class="k">Investido</span><span>'+brl(iv)+'</span></div>',e.clientX,e.clientY));ri.addEventListener("mouseleave",hideTT);svg.appendChild(ri);
-    const vi=el("text",{x:mL+wi+6,y:cy-3,class:"ax","text-anchor":"start"});vi.textContent=brlk(iv);vi.style.fill=CINV;svg.appendChild(vi);
-    const wf=(fv/maxV)*pw;const rf=el("rect",{x:mL,y:cy+2,width:Math.max(wf,1),height:bh,rx:3,fill:CFAT});rf.style.cursor="pointer";
-    rf.addEventListener("mousemove",e=>showTT('<div class="th">'+SHORT[p]+'</div><div class="row"><span class="k">Faturado</span><span>'+brl(fv)+'</span></div>',e.clientX,e.clientY));rf.addEventListener("mouseleave",hideTT);svg.appendChild(rf);
-    const vf=el("text",{x:mL+wf+6,y:cy+bh+3,class:"ax","text-anchor":"start"});vf.textContent=brlk(fv);vf.style.fill=CFAT;svg.appendChild(vf);
-  });
-}
+  const pa=DATA.produtoAno||{};
+  if(Object.keys(pa).length){const tax=taxRate();
+    const rows=Object.keys(pa).sort((a,b)=>(+pa[b].fat||0)-(+pa[a].fat||0)).map(p=>{
+      const inv=+pa[p].inv||0,invT=inv*(1+tax),rec=+pa[p].fat||0;
+      return {p,inv,invT,rec,roi:invT>0?(rec-invT)/invT:null,roas:invT>0?rec/invT:null,lucro:rec-invT};});
+    prodTable("tblProdAno",rows,true);return;}
+  const inv={};PRODUCTS.forEach(p=>{if(DATA.totals[p]>0)inv[p]=DATA.totals[p];});
+  prodTable("tblProdAno",prodRoiRows(inv,revProdYear()),true);}
 
 function showTT(html,x,y){tt.innerHTML=html;tt.style.opacity=1;let nx=x+14,ny=y+14;const r=tt.getBoundingClientRect();
   if(nx+r.width>window.innerWidth-8)nx=x-r.width-14;if(ny+r.height>window.innerHeight-8)ny=y-r.height-14;
@@ -704,7 +674,7 @@ function prodTiles(m){
 function syncMetaInputs(){document.getElementById("metaInp").value=metaVal(selMonth);document.getElementById("superInp").value=superVal(selMonth);}
 
 /* ===== render ===== */
-function drawMes(){fillMonthSel();syncMetaInputs();statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);legendMes();dailyMes();prodTiles(selMonth);chartInvFat(selMonth);prodMesTable();}
+function drawMes(){fillMonthSel();syncMetaInputs();statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);legendMes();dailyMes();prodTiles(selMonth);}
 function drawAno(){monthly();daily();prod();}
 function renderMes(){drawMes();}
 function renderAno(){kpisAno();tblGeral();prodAnoTable();legendAno();drawAno();noteOutros();}
