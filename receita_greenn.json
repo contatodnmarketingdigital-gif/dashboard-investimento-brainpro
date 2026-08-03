@@ -1,11 +1,13 @@
 {
-  "atualizado": "2026-07-31",
+  "atualizado": "2026-08-03 12:37",
   "fonte": "Vendas diárias por produto (planilha BrainPro Vendas Diarias Julho, v1); investimento da Meta via Windsor.",
   "moeda": "BRL",
   "webapp_url": "https://script.google.com/macros/s/AKfycbxdthtB7h2wSBGqn5j93YPUZYCWNi4aOx6PlDL9VjDH36aMyORIcT4T3WsuFvttesZS6A/exec",
   "por_mes_total": {
     "2026-06": 39081.24,
-    "2026-07": 297459.5
+    "2026-07": 297459.5,
+    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 39081.24,
+    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 48137.12
   },
   "por_mes_produto": {
     "2026-06": {
@@ -22,10 +24,21 @@
       "Outros": 1591.0,
       "Asaas": 7694.0,
       "Recorrência Pós": 60581.72
+    },
+    "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
+      "tDCS": 9447.33,
+      "Vagal": 12800.43,
+      "Aplicativo": 16833.48
+    },
+    "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": {
+      "tDCS": 7986.56,
+      "Vagal": 19991.96,
+      "Aplicativo": 14826.23,
+      "Pós-Graduação": 5332.37
     }
   },
-  "total_ano": 336540.74,
-  "n_vendas": 138,
+  "total_ano": 423759.1,
+  "n_vendas": 7,
   "por_dia": {
     "2026-06-17": 3997.5,
     "2026-06-18": 1140.48,
