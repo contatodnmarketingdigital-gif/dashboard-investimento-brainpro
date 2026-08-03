@@ -257,6 +257,11 @@ TEMPLATE = r'''<!DOCTYPE html>
       <p class="desc">Faturamento por produto e participação no total do mês (vem dos webhooks Greenn/Eduzz/Voomp).</p>
       <div class="kpis" id="prodTiles"></div>
     </div>
+    <div class="card">
+      <h2>Investido × Faturado por produto — <span id="mesTit2"></span></h2>
+      <p class="desc">Investimento (Meta) e faturamento de cada produto no mês, com ROI, ROAS e lucro. "Recorrência Pós" é faturamento sem tráfego (parcelas de contratos antigos), por isso aparece sem investimento.</p>
+      <div style="overflow-x:auto"><table id="tblProdMes"></table></div>
+    </div>
   </div>
 
   <!-- ================= VIEW ANO ================= -->
@@ -353,7 +358,7 @@ function prodTable(id,rows,showRoas){const t=document.getElementById(id);if(!t)r
   const foot=`<tfoot><tr><td>Total</td><td>${brlk(sInv)}</td><td>${brlk(sInvT)}</td><td>${sRec>0?brlk(sRec):"—"}</td><td>${froi}</td>${showRoas?`<td>${sRec>0&&sRoas!=null?sRoas.toFixed(2)+"x":"—"}</td>`:""}<td>${sRec>0?`<span class="${sLuc>=0?'pos':'neg'}">${brlk(sLuc)}</span>`:"—"}</td></tr></tfoot>`;
   t.innerHTML=head+"<tbody>"+(body||`<tr><td colspan="7" style="text-align:center;color:var(--ink2)">Sem dados</td></tr>`)+"</tbody>"+foot;}
 function prodMesTable(){const r=DATA.monthly.find(x=>x.mes===selMonth)||{};const inv={};PRODUCTS.forEach(p=>{if(r[p]>0)inv[p]=r[p];});
-  prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),false);
+  prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),true);
   const el2=document.getElementById("mesTit2");if(el2)el2.textContent=MES[selMonth]+" 2026";}
 function prodAnoTable(){
   const pa=DATA.produtoAno||{};
@@ -674,7 +679,7 @@ function prodTiles(m){
 function syncMetaInputs(){document.getElementById("metaInp").value=metaVal(selMonth);document.getElementById("superInp").value=superVal(selMonth);}
 
 /* ===== render ===== */
-function drawMes(){fillMonthSel();syncMetaInputs();statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);legendMes();dailyMes();prodTiles(selMonth);}
+function drawMes(){fillMonthSel();syncMetaInputs();statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);legendMes();dailyMes();prodTiles(selMonth);prodMesTable();}
 function drawAno(){monthly();daily();prod();}
 function renderMes(){drawMes();}
 function renderAno(){kpisAno();tblGeral();prodAnoTable();legendAno();drawAno();noteOutros();}
