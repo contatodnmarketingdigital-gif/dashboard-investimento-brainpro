@@ -257,6 +257,12 @@ TEMPLATE = r'''<!DOCTYPE html>
       <p class="desc">Faturamento por produto e participação no total do mês (vem dos webhooks Greenn/Eduzz/Voomp).</p>
       <div class="kpis" id="prodTiles"></div>
     </div>
+    <div class="card">
+      <h2>Investido × Faturado por produto — <span id="mesTitIF"></span></h2>
+      <p class="desc">Barras: <b style="color:#e0921a">investido</b> em tráfego (Meta) vs <b style="color:#0ca30c">faturado</b>, por produto. A tabela abaixo traz ROI, ROAS e lucro de cada um.</p>
+      <svg id="cInvFat" viewBox="0 0 900 320" role="img"></svg>
+      <div style="overflow-x:auto;margin-top:12px"><table id="tblProdMes"></table></div>
+    </div>
   </div>
 
   <!-- ================= VIEW ANO ================= -->
@@ -275,7 +281,7 @@ TEMPLATE = r'''<!DOCTYPE html>
     </div>
     <div class="card">
       <h2>Investimento × Receita por produto — ano</h2>
-      <p class="desc">Total do ano: receita (Greenn) e investimento por produto, com ROI, ROAS e lucro de cada um.</p>
+      <p class="desc">Investimento real (Meta) e faturamento por produto no ano, com ROI, ROAS e lucro. Inclui todos os produtos com investimento (Vagal, App etc.).</p>
       <div style="overflow-x:auto"><table id="tblProdAno"></table></div>
     </div>
     <div class="card">
@@ -353,17 +359,41 @@ function prodTable(id,rows,showRoas){const t=document.getElementById(id);if(!t)r
   const foot=`<tfoot><tr><td>Total</td><td>${brlk(sInv)}</td><td>${brlk(sInvT)}</td><td>${sRec>0?brlk(sRec):"—"}</td><td>${froi}</td>${showRoas?`<td>${sRec>0&&sRoas!=null?sRoas.toFixed(2)+"x":"—"}</td>`:""}<td>${sRec>0?`<span class="${sLuc>=0?'pos':'neg'}">${brlk(sLuc)}</span>`:"—"}</td></tr></tfoot>`;
   t.innerHTML=head+"<tbody>"+(body||`<tr><td colspan="7" style="text-align:center;color:var(--ink2)">Sem dados</td></tr>`)+"</tbody>"+foot;}
 function prodMesTable(){const r=DATA.monthly.find(x=>x.mes===selMonth)||{};const inv={};PRODUCTS.forEach(p=>{if(r[p]>0)inv[p]=r[p];});
-  prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),false);
-  const el2=document.getElementById("mesTit2");if(el2)el2.textContent=MES[selMonth]+" 2026";}
+  prodTable("tblProdMes",prodRoiRows(inv,revProdMonth(selMonth)),true);
+  const el2=document.getElementById("mesTitIF");if(el2)el2.textContent=MES[selMonth]+" 2026";}
 function prodAnoTable(){
-  const pa=DATA.produtoAno||{};
-  if(Object.keys(pa).length){const tax=taxRate();
-    const rows=Object.keys(pa).sort((a,b)=>(+pa[b].fat||0)-(+pa[a].fat||0)).map(p=>{
-      const inv=+pa[p].inv||0,invT=inv*(1+tax),rec=+pa[p].fat||0;
-      return {p,inv,invT,rec,roi:invT>0?(rec-invT)/invT:null,roas:invT>0?rec/invT:null,lucro:rec-invT};});
-    prodTable("tblProdAno",rows,true);return;}
-  const inv={};PRODUCTS.forEach(p=>{if(DATA.totals[p]>0)inv[p]=DATA.totals[p];});
-  prodTable("tblProdAno",prodRoiRows(inv,revProdYear()),true);}
+  /* Investimento real (Meta, por produto) + faturamento por produto.
+     Usa o faturamento anual da planilha-mestre quando existe; senão o recebido.
+     Assim TODO produto com investimento aparece (inclui Vagal). */
+  const pa=DATA.produtoAno||{}, rec=revProdYear();
+  const invByProd={}, recByProd={};
+  PRODUCTS.forEach(p=>{
+    const iv=+DATA.totals[p]||0;
+    const paFat=(pa[p]!=null)?(+pa[p].fat||0):null;
+    const rc=(paFat!=null)?paFat:(+rec[p]||0);
+    if(iv>0||rc>0){invByProd[p]=iv;recByProd[p]=rc;}
+  });
+  prodTable("tblProdAno",prodRoiRows(invByProd,recByProd),true);}
+/* ===== MÊS: Investido × Faturado por produto (barras) ===== */
+function chartInvFat(m){
+  const svg=document.getElementById("cInvFat");if(!svg)return;svg.innerHTML="";
+  const r=DATA.monthly.find(x=>x.mes===m)||{}, rp=revProdMonth(m);
+  const set=new Set();PRODUCTS.forEach(p=>{if((r[p]||0)>0||(rp[p]||0)>0)set.add(p);});
+  const list=[...set].sort((a,b)=>((rp[b]||0)+(r[b]||0))-((rp[a]||0)+(r[a]||0)));
+  const W=900,mL=150,mR=95,mT=10,mB=10,rowH=46,H=Math.max(110,mT+mB+list.length*rowH);
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  if(!list.length){const t=el("text",{x:W/2,y:H/2,class:"axl","text-anchor":"middle"});t.textContent="Sem dados neste mês";svg.appendChild(t);return;}
+  const pw=W-mL-mR,maxV=Math.max(1,...list.map(p=>Math.max(r[p]||0,rp[p]||0))),CINV="#e0921a",CFAT="#0ca30c",bh=13;
+  list.forEach((p,i)=>{const cy=mT+rowH*i+rowH/2, iv=r[p]||0, fv=rp[p]||0;
+    const lab=el("text",{x:mL-10,y:cy+4,class:"axl","text-anchor":"end"});lab.textContent=SHORT[p];svg.appendChild(lab);
+    const wi=(iv/maxV)*pw;const ri=el("rect",{x:mL,y:cy-bh-2,width:Math.max(wi,1),height:bh,rx:3,fill:CINV});ri.style.cursor="pointer";
+    ri.addEventListener("mousemove",e=>showTT('<div class="th">'+SHORT[p]+'</div><div class="row"><span class="k">Investido</span><span>'+brl(iv)+'</span></div>',e.clientX,e.clientY));ri.addEventListener("mouseleave",hideTT);svg.appendChild(ri);
+    const vi=el("text",{x:mL+wi+6,y:cy-3,class:"ax","text-anchor":"start"});vi.textContent=brlk(iv);vi.style.fill=CINV;svg.appendChild(vi);
+    const wf=(fv/maxV)*pw;const rf=el("rect",{x:mL,y:cy+2,width:Math.max(wf,1),height:bh,rx:3,fill:CFAT});rf.style.cursor="pointer";
+    rf.addEventListener("mousemove",e=>showTT('<div class="th">'+SHORT[p]+'</div><div class="row"><span class="k">Faturado</span><span>'+brl(fv)+'</span></div>',e.clientX,e.clientY));rf.addEventListener("mouseleave",hideTT);svg.appendChild(rf);
+    const vf=el("text",{x:mL+wf+6,y:cy+bh+3,class:"ax","text-anchor":"start"});vf.textContent=brlk(fv);vf.style.fill=CFAT;svg.appendChild(vf);
+  });
+}
 
 function showTT(html,x,y){tt.innerHTML=html;tt.style.opacity=1;let nx=x+14,ny=y+14;const r=tt.getBoundingClientRect();
   if(nx+r.width>window.innerWidth-8)nx=x-r.width-14;if(ny+r.height>window.innerHeight-8)ny=y-r.height-14;
@@ -674,7 +704,7 @@ function prodTiles(m){
 function syncMetaInputs(){document.getElementById("metaInp").value=metaVal(selMonth);document.getElementById("superInp").value=superVal(selMonth);}
 
 /* ===== render ===== */
-function drawMes(){fillMonthSel();syncMetaInputs();statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);legendMes();dailyMes();prodTiles(selMonth);}
+function drawMes(){fillMonthSel();syncMetaInputs();statusPill(selMonth);mesKpis(selMonth);chartCorrida(selMonth);chartFatDia(selMonth);trafKpis(selMonth);legendMes();dailyMes();prodTiles(selMonth);chartInvFat(selMonth);prodMesTable();}
 function drawAno(){monthly();daily();prod();}
 function renderMes(){drawMes();}
 function renderAno(){kpisAno();tblGeral();prodAnoTable();legendAno();drawAno();noteOutros();}
