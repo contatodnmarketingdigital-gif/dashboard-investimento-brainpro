@@ -1,5 +1,5 @@
 {
-  "atualizado": "2026-08-10",
+  "atualizado": "2026-08-11",
   "fonte": "Planilha mestre BrainPro_Trafego_Vendas_2026_v3 (Google Sheets)",
   "investimento_mensal": {
     "2026-01": 14798.29,
@@ -8,7 +8,8 @@
     "2026-04": 21317.97,
     "2026-05": 25466.17,
     "2026-06": 30723.63,
-    "2026-07": 53876.19
+    "2026-07": 53876.19,
+    "2026-08": 9468.11
   },
   "faturamento_mensal": {
     "2026-01": 145181.06,
@@ -76,12 +77,12 @@
     }
   },
   "kpis_ano": {
-    "investimento": 191084.56,
+    "investimento": 200552.66999999998,
     "faturamento": 1090855.62,
     "vendas": 1314,
-    "roi_pct": 4.015161708376077,
-    "roas": 5.015161708376077,
-    "lucro_imposto": 873344.0653520001,
+    "roi_pct": 3.778395462767417,
+    "roas": 4.778395462767417,
+    "lucro_imposto": 862566.5157390002,
     "leads": 4377
   }
 }
