@@ -608,17 +608,17 @@ function statusPill(m){
 }
 function mesKpis(m){
   const meta=metaVal(m),sup=superVal(m),fat=brutoVal(m),liq=revVal(m),dim=daysInMonth(m),d=curDay(m);
+  const inv=invMesTotal(m),invT=inv*(1+taxRate()),lucro=liq-invT;
   const rest=Math.max(0,dim-d),restD=Math.max(1,rest),fMeta=Math.max(0,meta-fat),fSup=Math.max(0,sup-fat);
-  const difTax=Math.max(0,fat-liq);
   document.getElementById("mesKpis").innerHTML=[
-    kpiCard("Faturamento bruto",brlk(fat),"faturamento cheio · até o dia "+d,""),
-    kpiCard("Faturamento s/ taxas",brlk(liq),difTax>0?"após comissões (−"+brlk(difTax)+")":"após comissões",""),
+    kpiCard("Faturamento bruto",brlk(fat),"faturamento cheio · até dia "+d,""),
+    kpiCard("Faturamento s/ taxas",brlk(liq),"sem taxas de plataforma",""),
+    kpiCard("Lucro",brlk(lucro),"sem taxas · sem tráfego",lucro>=0?"pos":"neg"),
     kpiCard("Meta do mês",brlk(meta),(meta>0?(100*fat/meta).toFixed(0):0)+"% atingido",fat>=meta&&meta>0?"pos":""),
     kpiCard("Super meta",brlk(sup),(sup>0?(100*fat/sup).toFixed(0):0)+"% atingido",fat>=sup&&sup>0?"pos":""),
-    kpiCard("Dias restantes",String(rest),"de "+dim+" dias",""),
     kpiCard("Falta p/ a meta",brlk(fMeta),fMeta<=0?"meta batida! 🎉":"de "+brlk(meta),fMeta<=0?"pos":""),
     kpiCard("Falta p/ super meta",brlk(fSup),fSup<=0?"super batida! 🎉":"de "+brlk(sup),fSup<=0?"pos":""),
-    kpiCard("Necessário/dia · meta",brlk(fMeta/restD),"p/ bater "+brlk(meta),""),
+    kpiCard("Dias restantes",String(rest),"de "+dim+" dias no mês",""),
   ].join("");
 }
 function chartCorrida(m){
