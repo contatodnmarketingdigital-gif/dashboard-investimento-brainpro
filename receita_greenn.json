@@ -1,5 +1,5 @@
 {
-  "atualizado": "2026-08-27 22:10",
+  "atualizado": "2026-08-28 (Agosto reconciliado até 27/08)",
   "fonte": "Vendas diárias reconciliadas Green+Voomp+Eduzz (planilha BrainPro); investimento Meta via Windsor.",
   "moeda": "BRL",
   "webapp_url": "https://script.google.com/macros/s/AKfycbxdthtB7h2wSBGqn5j93YPUZYCWNi4aOx6PlDL9VjDH36aMyORIcT4T3WsuFvttesZS6A/exec",
@@ -40,9 +40,11 @@
     "2026-08": {
       "Pós-Graduação": 77797.7,
       "tDCS": 90065.85,
-      "Vagal": 82170.66,
+      "Vagal": 20862.64,
+      "Lançamento Vagal": 61308.02,
       "Aplicativo": 15920.0,
-      "Outros": 6376.0,
+      "Fotobio": 5285.0,
+      "Outros": 1091.0,
       "Recorrência Pós": 39709.3
     }
   },

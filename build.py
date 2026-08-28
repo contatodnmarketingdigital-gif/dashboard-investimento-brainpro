@@ -6,12 +6,14 @@ Investimento = Meta (automatico). Receita = lancada pelo usuario (localStorage).
 import json, re
 from collections import defaultdict
 
-PRODUCTS = ["Pós-Graduação","Recorrência Pós","TEA","tDCS","Vagal","App","Impulsionamento Estratégia Instagram","Outros"]
+PRODUCTS = ["Pós-Graduação","Recorrência Pós","TEA","tDCS","Vagal","Lançamento Vagal","App","Fotobio","Impulsionamento Estratégia Instagram","Outros"]
 
 def classify(c):
     u = c.upper()
+    if re.search(r"FOTOBIO", u): return "Fotobio"
     if re.search(r"TDCS", u): return "tDCS"
     if re.search(r"PÓS|POS-GRAD|\[POS\]", u): return "Pós-Graduação"
+    if re.search(r"LAN[ÇC]AMENTO.*VAGAL|VAGAL.*LAN[ÇC]AMENTO", u): return "Lançamento Vagal"
     if re.search(r"VAGAL", u): return "Vagal"
     if re.search(r"\bTEA\b|\[TEA\]", u): return "TEA"
     if re.search(r"\bAPP\b|\[APP\]", u): return "App"
@@ -122,11 +124,11 @@ TEMPLATE = r'''<!DOCTYPE html>
 <style>
   :root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
     --grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
-    --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#7b61c9;--sOut:#9a988f;
+    --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#7b61c9;--s8:#ff7a3d;--s9:#38a9d9;--sOut:#9a988f;
     --good:#006300;--bad:#c0392b;--accent:#2a78d6;}
   :root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;
     --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
-    --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9b82e0;--sOut:#8a887f;
+    --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9b82e0;--s8:#ff8c55;--s9:#4fb8e6;--sOut:#8a887f;
     --good:#0ca30c;--bad:#e66767;--accent:#3987e5;}
   *{box-sizing:border-box}
   body{margin:0;background:var(--plane);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;}
@@ -310,8 +312,8 @@ TEMPLATE = r'''<!DOCTYPE html>
 <script>
 const DATA = __DATA__;
 const PRODUCTS = DATA.products;
-const COLORVAR = {"Pós-Graduação":"--s1","Recorrência Pós":"--s7","TEA":"--s2","tDCS":"--s3","Vagal":"--s4","App":"--s5","Impulsionamento Estratégia Instagram":"--s6","Outros":"--sOut"};
-const SHORT = {"Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Recorrência Pós","TEA":"TEA","tDCS":"tDCS","Vagal":"Vagal","App":"App","Impulsionamento Estratégia Instagram":"Impulsionamento","Outros":"Outros"};
+const COLORVAR = {"Pós-Graduação":"--s1","Recorrência Pós":"--s7","TEA":"--s2","tDCS":"--s3","Vagal":"--s4","Lançamento Vagal":"--s8","App":"--s5","Fotobio":"--s9","Impulsionamento Estratégia Instagram":"--s6","Outros":"--sOut"};
+const SHORT = {"Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Recorrência Pós","TEA":"TEA","tDCS":"tDCS","Vagal":"Vagal","Lançamento Vagal":"Lanç. Vagal","App":"App","Fotobio":"Fotobio","Impulsionamento Estratégia Instagram":"Impulsionamento","Outros":"Outros"};
 const MES = {"2026-01":"Janeiro","2026-02":"Fevereiro","2026-03":"Março","2026-04":"Abril","2026-05":"Maio","2026-06":"Junho","2026-07":"Julho","2026-08":"Agosto","2026-09":"Setembro","2026-10":"Outubro","2026-11":"Novembro","2026-12":"Dezembro"};
 const MESC = {"2026-01":"Jan","2026-02":"Fev","2026-03":"Mar","2026-04":"Abr","2026-05":"Mai","2026-06":"Jun","2026-07":"Jul","2026-08":"Ago","2026-09":"Set","2026-10":"Out","2026-11":"Nov","2026-12":"Dez"};
 const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -337,7 +339,8 @@ function revShow(m){return REV[m]!=null?REV[m]:(RDEF[m]!=null?(+RDEF[m]).toLocal
 function revIsAuto(m){return REV[m]==null&&RDEF[m]!=null;}
 /* mapeia as classes de receita (Greenn/webhooks) para os produtos do dashboard */
 const REV2P={tDCS:"tDCS",Vagal:"Vagal",Pos:"Pós-Graduação",NeuroApp:"App",TEA:"TEA",Outros:"Outros",
-  "Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Recorrência Pós","Aplicativo":"App","App":"App"};
+  "Pós-Graduação":"Pós-Graduação","Recorrência Pós":"Recorrência Pós","Aplicativo":"App","App":"App",
+  "Lançamento Vagal":"Lançamento Vagal","Fotobio":"Fotobio"};
 function revProdMonth(m){const o={};const src=RPROD[m]||{};for(const k in src){const p=REV2P[k]||"Outros";o[p]=(o[p]||0)+(+src[k]||0);}return o;}
 function revProdYear(){const o={};for(const m in RPROD){const r=revProdMonth(m);for(const p in r)o[p]=(o[p]||0)+r[p];}return o;}
 function prodRoiRows(invByProd,recByProd){const tax=taxRate();
@@ -667,8 +670,8 @@ function trafKpis(m){
   ].join("");
   const t2=document.getElementById("mesTitTraf");if(t2)t2.textContent=MES[m]+" 2026";
 }
-const PLAT={"Pós-Graduação":"Voomp / Eduzz","tDCS":"Eduzz","Recorrência Pós":"recebida","Vagal":"Eduzz / Greenn","Aplicativo":"Greenn","App":"Greenn","TEA":"—","Impulsionamento Estratégia Instagram":"orgânico","Outros":"Neuromodulação"};
-const TILECOL=["--s1","--s2","--s3","--s4","--s5","--s7","--s6","--sOut"];
+const PLAT={"Pós-Graduação":"Voomp / Eduzz","tDCS":"Eduzz","Recorrência Pós":"recebida","Vagal":"Eduzz / Greenn","Lançamento Vagal":"Greenn R$497","Aplicativo":"Greenn","App":"Greenn","Fotobio":"Greenn","TEA":"—","Impulsionamento Estratégia Instagram":"orgânico","Outros":"Neuromodulação"};
+const TILECOL=["--s1","--s2","--s3","--s4","--s5","--s7","--s6","--s8","--s9","--sOut"];
 function prodTiles(m){
   const rp=RPROD[m]||{},fat=revVal(m)||Object.values(rp).reduce((s,v)=>s+(+v||0),0);
   const order=Object.keys(rp).filter(k=>rp[k]>0).sort((a,b)=>rp[b]-rp[a]);
