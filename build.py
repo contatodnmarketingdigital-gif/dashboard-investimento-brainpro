@@ -28,6 +28,7 @@ def load_receita(path="receita_greenn.json"):
         r = json.load(open(path, encoding="utf-8"))
         return {
             "receitaDefault": r.get("por_mes_total", {}),
+            "receitaBruto": r.get("por_mes_bruto", {}),
             "receitaProduto": r.get("por_mes_produto", {}),
             "receitaAtualizado": r.get("atualizado", ""),
             "receitaFonte": r.get("fonte", ""),
@@ -329,8 +330,11 @@ const LS="brainpro_receita_2026";
 function loadRev(){try{return JSON.parse(localStorage.getItem(LS)||"{}")}catch(e){return {}}}
 function saveRev(o){try{localStorage.setItem(LS,JSON.stringify(o))}catch(e){}}
 let REV=loadRev();
-const RDEF=DATA.receitaDefault||{};              /* receita real do Greenn (liquido) */
+const RDEF=DATA.receitaDefault||{};              /* receita SEM TAXAS (liquido, apos comissoes) */
+const RBRUTO=DATA.receitaBruto||{};              /* faturamento BRUTO (cheio, antes das comissoes) */
 const RPROD=DATA.receitaProduto||{};
+/* faturamento bruto do mes: usa o bruto informado; senao cai no valor efetivo (liquido) */
+function brutoVal(m){return RBRUTO[m]!=null?(+RBRUTO[m]||0):revVal(m);}
 function taxRate(){const v=parseFloat(document.getElementById("taxRate").value);return isNaN(v)?0:v/100;}
 function parseNum(s){return parseFloat(String(s).replace(/\./g,'').replace(',','.').trim())||0;}
 /* valor efetivo da receita do mes: o que voce digitou vence; senao usa o real do Greenn */
@@ -603,17 +607,18 @@ function statusPill(m){
   e.textContent="● "+(ok?"No ritmo":"Atrás")+" · "+(ok?"+":"−")+brlk(Math.abs(delta));
 }
 function mesKpis(m){
-  const meta=metaVal(m),sup=superVal(m),fat=revVal(m),dim=daysInMonth(m),d=curDay(m);
+  const meta=metaVal(m),sup=superVal(m),fat=brutoVal(m),liq=revVal(m),dim=daysInMonth(m),d=curDay(m);
   const rest=Math.max(0,dim-d),restD=Math.max(1,rest),fMeta=Math.max(0,meta-fat),fSup=Math.max(0,sup-fat);
+  const difTax=Math.max(0,fat-liq);
   document.getElementById("mesKpis").innerHTML=[
-    kpiCard("Meta do mês",brlk(meta),(meta>0?(100*fat/meta).toFixed(0):0)+"% atingido",""),
-    kpiCard("Super meta",brlk(sup),(sup>0?(100*fat/sup).toFixed(0):0)+"% atingido",""),
-    kpiCard("Faturado acum.",brlk(fat),"até o dia "+d,""),
+    kpiCard("Faturamento bruto",brlk(fat),"faturamento cheio · até o dia "+d,""),
+    kpiCard("Faturamento s/ taxas",brlk(liq),difTax>0?"após comissões (−"+brlk(difTax)+")":"após comissões",""),
+    kpiCard("Meta do mês",brlk(meta),(meta>0?(100*fat/meta).toFixed(0):0)+"% atingido",fat>=meta&&meta>0?"pos":""),
+    kpiCard("Super meta",brlk(sup),(sup>0?(100*fat/sup).toFixed(0):0)+"% atingido",fat>=sup&&sup>0?"pos":""),
     kpiCard("Dias restantes",String(rest),"de "+dim+" dias",""),
     kpiCard("Falta p/ a meta",brlk(fMeta),fMeta<=0?"meta batida! 🎉":"de "+brlk(meta),fMeta<=0?"pos":""),
     kpiCard("Falta p/ super meta",brlk(fSup),fSup<=0?"super batida! 🎉":"de "+brlk(sup),fSup<=0?"pos":""),
     kpiCard("Necessário/dia · meta",brlk(fMeta/restD),"p/ bater "+brlk(meta),""),
-    kpiCard("Necessário/dia · super",brlk(fSup/restD),"p/ bater "+brlk(sup),""),
   ].join("");
 }
 function chartCorrida(m){

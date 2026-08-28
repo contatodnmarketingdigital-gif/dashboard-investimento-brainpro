@@ -120,5 +120,8 @@
     "2026-08-27": 74253.59
   },
   "meta_default": 250000,
-  "supermeta_default": 300000
+  "supermeta_default": 300000,
+  "por_mes_bruto": {
+    "2026-08": 312039.51
+  }
 }
