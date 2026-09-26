@@ -675,7 +675,7 @@ function trafKpis(m){
   ].join("");
   const t2=document.getElementById("mesTitTraf");if(t2)t2.textContent=MES[m]+" 2026";
 }
-const PLAT={"Pós-Graduação":"Voomp / Eduzz","tDCS":"Eduzz","Recorrência Pós":"recebida","Vagal":"Eduzz / Greenn","Lançamento Vagal":"Greenn R$497","Aplicativo":"Greenn","App":"Greenn","Fotobio":"Greenn","Matrículas":"co-produção","TEA":"—","Impulsionamento Estratégia Instagram":"orgânico","Outros":"Neuromodulação"};
+const PLAT={"Pós-Graduação":"Voomp / Eduzz","tDCS":"Eduzz","Recorrência Pós":"recebida","Vagal":"Eduzz / Greenn","Lançamento Vagal":"Greenn R$497","Aplicativo":"Greenn","App":"Greenn","Fotobio":"Greenn","Matrículas":"co-produção","TEA":"—","Impulsionamento Estratégia Instagram":"orgânico","Outros":"Neuromodulação","Direto e patrocínio":"C6 / Asaas","Mentoria":"Asaas"};
 const TILECOL=["--s1","--s2","--s3","--s4","--s5","--s7","--s6","--s8","--s9","--s10","--sOut"];
 function prodTiles(m){
   const rp=RPROD[m]||{},fat=revVal(m)||Object.values(rp).reduce((s,v)=>s+(+v||0),0);
@@ -727,8 +727,9 @@ function liveRevenue(){
     clearTimeout(timer);
     try{
       if(res&&res.por_mes_total&&Object.keys(res.por_mes_total).length){
-        for(const m in res.por_mes_total) RDEF[m]=res.por_mes_total[m];
-        if(res.por_mes_produto) for(const m in res.por_mes_produto) RPROD[m]=res.por_mes_produto[m];
+        for(const m in res.por_mes_total){ /* ao vivo só substitui se for MAIOR que o valor embutido (não apaga fechamento lançado) */
+          if((+res.por_mes_total[m]||0)>=(+RDEF[m]||0)){RDEF[m]=res.por_mes_total[m];
+            if(res.por_mes_produto&&res.por_mes_produto[m]) RPROD[m]=res.por_mes_produto[m];}}
         const badge=document.getElementById("upd");
         if(badge&&res.atualizado) badge.textContent="receita ao vivo · "+res.atualizado;
         switchView(curView);            // re-renderiza com os números ao vivo

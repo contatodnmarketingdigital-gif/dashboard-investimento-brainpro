@@ -1,6 +1,6 @@
 {
-  "atualizado": "2026-09-26 10:25",
-  "fonte": "Agosto FECHADO — bruto e líquido (após comissões) das plataformas; investimento Meta.",
+  "atualizado": "2026-09-26 17:10",
+  "fonte": "Agosto FECHADO e Setembro PARCIAL (01-26/09) — bruto e líquido (após comissões) das plataformas Greenn/Voomp/Asaas/C6; investimento Meta.",
   "moeda": "BRL",
   "webapp_url": "https://script.google.com/macros/s/AKfycbxdthtB7h2wSBGqn5j93YPUZYCWNi4aOx6PlDL9VjDH36aMyORIcT4T3WsuFvttesZS6A/exec",
   "por_mes_total": {
@@ -8,7 +8,8 @@
     "2026-07": 299142.34,
     "Mon Jun 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 39081.24,
     "Wed Jul 01 2026 00:00:00 GMT-0300 (Brasilia Standard Time)": 48137.12,
-    "2026-08": 313473.84
+    "2026-08": 313473.84,
+    "2026-09": 177992.38
   },
   "por_mes_produto": {
     "2026-06": {
@@ -47,9 +48,18 @@
       "Matrículas": 230,
       "Fotobio": 5012,
       "Outros": 2923
+    },
+    "2026-09": {
+      "Pós-Graduação": 49073.31,
+      "tDCS": 47288.11,
+      "Recorrência Pós": 38469.78,
+      "Vagal": 14175.28,
+      "Aplicativo": 14321.85,
+      "Direto e patrocínio": 10664.05,
+      "Mentoria": 4000
     }
   },
-  "total_ano": 738915.78,
+  "total_ano": 829689.8,
   "n_vendas": 7,
   "por_dia": {
     "2026-06-17": 3997.5,
@@ -122,12 +132,39 @@
     "2026-08-28": 13573.62,
     "2026-08-29": 13573.62,
     "2026-08-30": 13573.62,
-    "2026-08-31": 13573.62
+    "2026-08-31": 13573.62,
+    "2026-09-01": 8782.04,
+    "2026-09-02": 5859.71,
+    "2026-09-03": 4074,
+    "2026-09-04": 5133.04,
+    "2026-09-05": 4497,
+    "2026-09-06": 6720.26,
+    "2026-09-07": 6018.08,
+    "2026-09-08": 4883.7,
+    "2026-09-09": 9145.14,
+    "2026-09-10": 8457.82,
+    "2026-09-11": 8617.68,
+    "2026-09-12": 1410.74,
+    "2026-09-13": 2197.76,
+    "2026-09-14": 8172.48,
+    "2026-09-15": 1652.14,
+    "2026-09-16": 524.08,
+    "2026-09-17": 31104.54,
+    "2026-09-18": 12362.04,
+    "2026-09-19": 7354.08,
+    "2026-09-20": 4330.1,
+    "2026-09-21": 14429.76,
+    "2026-09-22": 11034.06,
+    "2026-09-23": 7393.23,
+    "2026-09-24": 3249.16,
+    "2026-09-25": 21677.58,
+    "2026-09-26": 1269.38
   },
   "meta_default": 250000,
   "supermeta_default": 300000,
   "por_mes_bruto": {
-    "2026-08": 366334
+    "2026-08": 366334,
+    "2026-09": 200349.6
   },
   "por_mes_produto_bruto": {
     "2026-08": {
@@ -140,6 +177,15 @@
       "Matrículas": 9880,
       "Fotobio": 5285,
       "Outros": 3091
+    },
+    "2026-09": {
+      "Pós-Graduação": 64010.06,
+      "tDCS": 53864.56,
+      "Recorrência Pós": 38469.78,
+      "Vagal": 14940,
+      "Aplicativo": 14401.15,
+      "Direto e patrocínio": 10664.05,
+      "Mentoria": 4000
     }
   }
 }
